@@ -29,6 +29,8 @@ const DEFAULT_SETTINGS: Settings = {
   mapLabels: 'all',
   showRailways: true,
   showStreets: false,
+  hiddenRailTypes: [],
+  showStations: true,
   colorPlacesByGroup: true,
   colorPeopleByGroup: true,
 }

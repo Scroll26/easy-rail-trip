@@ -49,9 +49,8 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Timeline
 
 | Button | What it does |
 |---|---|
-| 🚆 **Interrail** – Highlight / Dim others / Off | Shows which countries your Interrail pass covers (teal) |
 | 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
-| 🗺️ **Map ▾** | **Map text**: All / Countries only / None (for a cleaner map) · **🛤️ Railway lines** (on by default: high-speed red, main lines orange, branch lines yellow; tap a station dot for its name) · **🛣️ Streets** (off by default) · **💱 Currencies**: colours each currency zone and shows what 1 € is worth there · **🎨 Pins in group colours** |
+| 🗺️ **Map ▾** | **🎫 Interrail:** Highlight / Dim others / Off: which countries your pass covers (teal) · **🛤️ Railway lines** (on by default): switch each kind on or off (high-speed red, main lines orange, branch lines yellow, narrow gauge brown, other grey) and the station dots (tap one for its name) · **⚙️ Other:** map text (All / Countries only / None), 🛣️ streets (off by default), 💱 currencies (colours each currency zone and shows what 1 € is worth there), 🎨 pins in group colours |
 | **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
 | ◎ | Show where you are right now |
 
@@ -89,7 +88,7 @@ Your trip day by day. **Only days you actually plan are shown**, so a long trip 
 
 ### 🚆 Trains: where can I go without changing?
 
-Choose a station (search it, tap a station dot on the map, or pick one of your places). Every station you can reach **without changing trains** appears as a coloured dot: green is close, red is far. The list shows the travel time to each one.
+Choose a station (search it, tap a station dot on the map, or pick one of your places). If a town has no railway station, the **Direct trains** button is greyed out. Every station you can reach **without changing trains** appears as a coloured dot: green is close, red is far. The list shows the travel time to each one.
 
 - **Leaving:** morning, midday or evening (evening includes night trains)
 - **Up to:** 4, 8 or 12 hours of travel
@@ -137,6 +136,10 @@ In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. You
 | Sync says "Tap to sync" | Normal after about an hour. Tap it once to reconnect |
 
 ---
+
+## Licence
+
+Rail Planner is open source under the [MIT licence](LICENSE): you may use, change and share the code, as long as the copyright notice stays in it.
 
 ## For developers
 

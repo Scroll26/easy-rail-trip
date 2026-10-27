@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { RAIL_TYPES } from '../data/railTypes'
 import { updateSettings } from '../store'
 import { NO_GROUP, type Group, type InterrailMode, type Settings } from '../types'
 
@@ -114,20 +115,28 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
     )
   }
 
+  function toggleRailType(id: string) {
+    const hidden = settings.hiddenRailTypes
+    updateSettings({ hiddenRailTypes: hidden.includes(id) ? hidden.filter((t) => t !== id) : [...hidden, id] })
+  }
+
+  const check = (label: React.ReactNode, checked: boolean, onChange: () => void, disabled = false) => (
+    <label className={'check' + (disabled ? ' disabled' : '')}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={onChange} />
+      {label}
+    </label>
+  )
+
+  const mapChanged =
+    settings.interrailMode !== 'highlight' ||
+    !settings.showRailways ||
+    settings.hiddenRailTypes.length > 0 ||
+    settings.showStreets ||
+    settings.showCurrencies ||
+    settings.mapLabels !== 'all'
+
   return (
     <div className="map-toolbar" ref={ref}>
-      <div className="segmented compact" title="Interrail area">
-        <span className="seg-label">🚆 Interrail</span>
-        {IR_MODES.map((m) => (
-          <button
-            key={m.mode}
-            className={settings.interrailMode === m.mode ? 'active' : ''}
-            onClick={() => updateSettings({ interrailMode: m.mode })}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
       {layer('place')}
       {layer('person')}
       <div className="split">
@@ -136,7 +145,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
           onClick={() => setMenu(menu === 'map' ? null : 'map')}
         >
           🗺️ Map
-          {(settings.showCurrencies || settings.mapLabels !== 'all') && <span className="badge-dot" />}
+          {mapChanged && <span className="badge-dot" title="Map settings changed" />}
         </button>
         <button
           className={'split-more' + (menu === 'map' ? ' open' : '')}
@@ -146,8 +155,56 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
           ▾
         </button>
         {menu === 'map' && (
-          <div className="menu menu-right">
-            <div className="menu-title first">Map text</div>
+          <div className="menu menu-right map-menu">
+            <div className="menu-title first">🎫 Interrail</div>
+            <div className="segmented">
+              {IR_MODES.map((m) => (
+                <button
+                  key={m.mode}
+                  className={settings.interrailMode === m.mode ? 'active' : ''}
+                  onClick={() => updateSettings({ interrailMode: m.mode })}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="menu-hint">Countries where the Interrail pass is valid</p>
+
+            <div className="menu-title">🛤️ Railway lines</div>
+            {check(<b>Show railway lines</b>, settings.showRailways, () => updateSettings({ showRailways: !settings.showRailways }))}
+            <div className={'rail-types' + (settings.showRailways ? '' : ' off')}>
+              {RAIL_TYPES.map((t) => (
+                <label key={t.id} className="check rail-type">
+                  <input
+                    type="checkbox"
+                    disabled={!settings.showRailways}
+                    checked={!settings.hiddenRailTypes.includes(t.id)}
+                    onChange={() => toggleRailType(t.id)}
+                  />
+                  <span className="rail-swatch" style={{ background: t.color }} />
+                  <span>
+                    {t.label}
+                    <span className="menu-hint">{t.hint}</span>
+                  </span>
+                </label>
+              ))}
+              <label className="check rail-type">
+                <input
+                  type="checkbox"
+                  disabled={!settings.showRailways}
+                  checked={settings.showStations}
+                  onChange={() => updateSettings({ showStations: !settings.showStations })}
+                />
+                <span className="station-swatch" />
+                <span>
+                  Stations
+                  <span className="menu-hint">tap one for its name and direct trains</span>
+                </span>
+              </label>
+            </div>
+
+            <div className="menu-title">⚙️ Other</div>
+            <div className="menu-sub">Map text</div>
             <div className="segmented">
               {LABEL_MODES.map((m) => (
                 <button
@@ -159,42 +216,12 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
                 </button>
               ))}
             </div>
-            <div className="menu-title">Overlays</div>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={settings.showRailways}
-                onChange={() => updateSettings({ showRailways: !settings.showRailways })}
-              />
-              🛤️ Railway lines
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={settings.showStreets}
-                onChange={() => updateSettings({ showStreets: !settings.showStreets })}
-              />
-              🛣️ Streets
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={settings.showCurrencies}
-                onChange={() => updateSettings({ showCurrencies: !settings.showCurrencies })}
-              />
-              💱 Currencies
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={settings.colorPlacesByGroup && settings.colorPeopleByGroup}
-                onChange={() => {
-                  const on = !(settings.colorPlacesByGroup && settings.colorPeopleByGroup)
-                  updateSettings({ colorPlacesByGroup: on, colorPeopleByGroup: on })
-                }}
-              />
-              🎨 Pins in group colours
-            </label>
+            {check('🛣️ Streets', settings.showStreets, () => updateSettings({ showStreets: !settings.showStreets }))}
+            {check('💱 Currencies', settings.showCurrencies, () => updateSettings({ showCurrencies: !settings.showCurrencies }))}
+            {check('🎨 Pins in group colours', settings.colorPlacesByGroup && settings.colorPeopleByGroup, () => {
+              const on = !(settings.colorPlacesByGroup && settings.colorPeopleByGroup)
+              updateSettings({ colorPlacesByGroup: on, colorPeopleByGroup: on })
+            })}
           </div>
         )}
       </div>

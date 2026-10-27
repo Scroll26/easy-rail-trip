@@ -1,5 +1,6 @@
 import { CATEGORIES, STATUSES } from '../data/categories'
 import { formatDay } from '../dates'
+import { useStationCheck } from '../rail/useStationCheck'
 import { deletePlace, savePlace } from '../store'
 import type { Place, PlaceCategory, PlaceStatus, TimelineItem } from '../types'
 
@@ -16,6 +17,9 @@ interface Props {
 
 export default function PlaceEditor({ place, scheduled, onClose, onMove, onTrains, onAddToTimeline, onOpenItem }: Props) {
   const set = (patch: Partial<Place>) => savePlace({ ...place, ...patch })
+  // Saved stations are used as they are; anything else needs a station nearby
+  const trains = useStationCheck(place.name, place.lat, place.lng, place.category === 'station')
+  const noTrains = trains.state === 'no'
 
   return (
     <div className="editor">
@@ -97,7 +101,13 @@ export default function PlaceEditor({ place, scheduled, onClose, onMove, onTrain
       </div>
 
       <div className="row">
-        <button onClick={onTrains}>🚆 Direct trains</button>
+        <button
+          onClick={onTrains}
+          disabled={noTrains || trains.state === 'checking'}
+          title={noTrains ? 'No railway station near this place' : trains.state === 'yes' ? `From ${trains.station.name}` : undefined}
+        >
+          {trains.state === 'checking' ? '🚆 Checking…' : noTrains ? '🚆 No trains here' : '🚆 Direct trains'}
+        </button>
         <button onClick={onMove}>📍 Move pin</button>
         <a
           className="button"

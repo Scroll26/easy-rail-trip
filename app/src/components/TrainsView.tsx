@@ -126,6 +126,7 @@ export default function TrainsView({
         </ul>
       )}
 
+      {!origin && error && <p className="error-text small">{error}</p>}
       {!origin && !stations && (
         <>
           <p className="muted small intro">

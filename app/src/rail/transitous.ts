@@ -63,15 +63,56 @@ export async function searchStations(text: string): Promise<Station[]> {
   const res = await fetch(`${API}/v1/geocode?${new URLSearchParams({ text, type: 'STOP' })}`)
   if (!res.ok) throw new Error(`Station search failed (${res.status})`)
   const list = (await res.json()) as { id: string; name: string; lat: number; lon: number; modes?: string[] }[]
-  const rail = list.filter((s) => !s.modes || s.modes.some((m) => RAIL_MODES.includes(m)))
-  return dedupeStations((rail.length ? rail : list).map((s) => ({ name: s.name, lat: s.lat, lng: s.lon, stopId: s.id })))
+  const rail = list.filter((s) => isRailStop(s.modes))
+  return dedupeStations(rail.map((s) => ({ name: s.name, lat: s.lat, lng: s.lon, stopId: s.id })))
 }
 
-/** The main station near a point (e.g. a tapped city), if any */
-export async function stationNear(name: string, lat: number, lng: number): Promise<Station | null> {
-  const found = await searchStations(name)
-  const near = found.filter((s) => distanceKm(s.lat, s.lng, lat, lng) < 25)
-  return near[0] ?? null
+const isRailStop = (modes?: string[]) => !!modes?.some((m) => RAIL_MODES.includes(m))
+
+const STATION_CACHE_KEY = 'rail-planner:station-near'
+
+/**
+ * The railway station for a place (e.g. a tapped city), or null if no trains run there.
+ * First a station with the place's name nearby (finds "Wien Hbf" for Vienna), else any
+ * rail stop within 5 km. Answers, including "none", are remembered on the device.
+ */
+export async function findStation(name: string, lat: number, lng: number): Promise<Station | null> {
+  const key = `${name}|${lat.toFixed(3)},${lng.toFixed(3)}`
+  const cache = readJson<Record<string, { s: Station | null; t: number }>>(STATION_CACHE_KEY)
+  const hit = cache[key]
+  if (hit && Date.now() - hit.t < CACHE_DAYS * 86400000) return hit.s
+
+  let station: Station | null = null
+  const named = (await searchStations(name)).filter((s) => distanceKm(s.lat, s.lng, lat, lng) < 25)
+  if (named.length) station = named[0]
+  else {
+    const params = new URLSearchParams({ place: `${lat},${lng}`, type: 'STOP', numResults: '50' })
+    const res = await fetch(`${API}/v1/reverse-geocode?${params}`)
+    if (!res.ok) throw new Error(`Station lookup failed (${res.status})`)
+    const stops = (await res.json()) as { id: string; name: string; lat: number; lon: number; modes?: string[] }[]
+    const rail = stops
+      .filter((s) => isRailStop(s.modes) && distanceKm(s.lat, s.lon, lat, lng) < 5)
+      .sort((a, b) => distanceKm(a.lat, a.lon, lat, lng) - distanceKm(b.lat, b.lon, lat, lng))[0]
+    if (rail) station = { name: rail.name, lat: rail.lat, lng: rail.lon, stopId: rail.id }
+  }
+  cache[key] = { s: station, t: Date.now() }
+  // Keep the newest 300 answers
+  const keys = Object.keys(cache).sort((a, b) => cache[b].t - cache[a].t)
+  for (const k of keys.slice(300)) delete cache[k]
+  try {
+    localStorage.setItem(STATION_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    /* storage full */
+  }
+  return station
+}
+
+function readJson<T>(key: string): T {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? '{}')
+  } catch {
+    return {} as T
+  }
 }
 
 export async function directTrains(origin: Station, query: DirectQuery): Promise<DirectResult> {
@@ -95,9 +136,10 @@ export async function directTrains(origin: Station, query: DirectQuery): Promise
   if (!res.ok) throw new Error(res.status === 429 ? 'Too many lookups right now. Try again in a minute.' : `Timetable lookup failed (${res.status})`)
   const j = (await res.json()) as { all: { place: ApiPlace; duration: number; k: number }[] }
 
+
   const destinations = cleanDestinations(
     j.all
-      .filter((r) => r.k === 1 && r.place.stopId && (!r.place.modes || r.place.modes.some((x) => RAIL_MODES.includes(x))))
+      .filter((r) => r.k === 1 && r.place.stopId && (!r.place.modes || isRailStop(r.place.modes)))
       .map((r) => ({
         name: r.place.name,
         lat: r.place.lat,

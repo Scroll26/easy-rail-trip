@@ -6,7 +6,8 @@ import { COUNTRIES_URL } from '../countries'
 import { COUNTRY_LABELS } from '../data/countryLabels'
 import { COUNTRY_CURRENCY, CURRENCY_STYLE, NO_CURRENCY_LABEL } from '../data/currencies'
 import { formatRate, type Rates } from '../rates'
-import { formatMinutes, type DirectResult } from '../rail/transitous'
+import { findStation, formatMinutes, type DirectResult } from '../rail/transitous'
+import { RAIL_TYPE, RAIL_TYPES } from '../data/railTypes'
 import { NO_GROUP, type Group, type Person, type Place, type PlaceCategory, type Selection, type Settings } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -136,15 +137,22 @@ function currencyPoints(rates: Rates | null): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features }
 }
 
-const ORM_LAYERS = ['orm-lines-low', 'orm-lines-high', 'orm-stations-low', 'orm-stations-med']
+const ORM_LINE_LAYERS = ['orm-lines-low', 'orm-lines-high']
+const ORM_STATION_LAYERS = ['orm-stations-low', 'orm-stations-med', 'orm-stations-high']
 
 /**
  * Railway overlay on/off, and the basemap's streets. Streets are hidden by default: this
  * is a rail trip planner. The basemap's own thin rail lines go away while the overlay is on.
  */
 function applyRailwaysAndStreets(map: maplibregl.Map, settings: Settings) {
-  for (const id of ORM_LAYERS)
-    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', settings.showRailways ? 'visible' : 'none')
+  for (const id of ORM_LINE_LAYERS) {
+    if (!map.getLayer(id)) continue
+    map.setLayoutProperty(id, 'visibility', settings.showRailways ? 'visible' : 'none')
+    map.setFilter(id, railFilter(settings.hiddenRailTypes))
+  }
+  for (const id of ORM_STATION_LAYERS)
+    if (map.getLayer(id))
+      map.setLayoutProperty(id, 'visibility', settings.showRailways && settings.showStations ? 'visible' : 'none')
   for (const layer of map.getStyle().layers) {
     const sourceLayer = (layer as { 'source-layer'?: string })['source-layer']
     if (sourceLayer !== 'transportation' && sourceLayer !== 'transportation_name') continue
@@ -156,14 +164,33 @@ function applyRailwaysAndStreets(map: maplibregl.Map, settings: Settings) {
   }
 }
 
-// OpenRailwayMap standard colours: high-speed red, main lines orange, branch lines yellow
-const RAIL_COLOR: maplibregl.ExpressionSpecification = [
-  'case',
-  ['to-boolean', ['get', 'highspeed']], '#e3141b',
-  ['==', ['get', 'usage'], 'main'], '#ff8100',
-  ['==', ['get', 'usage'], 'branch'], '#d9b400',
-  ['in', ['get', 'feature'], ['literal', ['narrow_gauge']]], '#a0522d',
+// OpenRailwayMap standard colours: high-speed red, main lines orange, branch lines yellow...
+const RAIL_COLOR = [
+  'match',
+  RAIL_TYPE,
+  ...RAIL_TYPES.flatMap((t) => [t.id, t.color]),
   '#8e8e8e',
+] as unknown as maplibregl.ExpressionSpecification
+
+const IN_SERVICE: maplibregl.ExpressionSpecification = [
+  'all',
+  ['==', ['coalesce', ['get', 'state'], 'present'], 'present'],
+  ['!', ['has', 'service']],
+]
+
+/** Lines in service whose type isn't switched off */
+const railFilter = (hidden: string[]): maplibregl.FilterSpecification => [
+  'all',
+  IN_SERVICE,
+  ['!', ['in', RAIL_TYPE, ['literal', hidden]]],
+]
+
+// Stations: no tram / metro stops, nothing closed
+const STATION_FILTER: maplibregl.FilterSpecification = [
+  'all',
+  ['==', ['coalesce', ['get', 'state'], 'present'], 'present'],
+  ['!', ['in', ['coalesce', ['get', 'feature'], ''], ['literal', ['tram_stop']]]],
+  ['!', ['in', ['coalesce', ['get', 'station'], ''], ['literal', ['subway', 'tram', 'light_rail', 'monorail', 'funicular']]]],
 ]
 const RAIL_RANK: maplibregl.ExpressionSpecification = [
   'case',
@@ -354,12 +381,20 @@ export default function MapView({
         minzoom: 7,
         maxzoom: 8,
       })
+      // From zoom 8 on: every station and halt, also the small ones
+      map.addSource('orm-stations-high', {
+        type: 'vector',
+        tiles: [
+          ORM +
+            'standard_railway_text_stations,standard_railway_grouped_stations,standard_railway_grouped_station_areas,' +
+            'standard_station_entrances,standard_railway_stop_positions,standard_interlocking,standard_interlocking_text/{z}/{x}/{y}',
+        ],
+        minzoom: 8,
+        maxzoom: 14,
+      })
       const visibility = latest.current.settings.showRailways ? 'visible' : 'none'
-      const inService: maplibregl.ExpressionSpecification = [
-        'all',
-        ['==', ['coalesce', ['get', 'state'], 'present'], 'present'],
-        ['!', ['has', 'service']],
-      ]
+      const stationVisibility =
+        latest.current.settings.showRailways && latest.current.settings.showStations ? 'visible' : 'none'
       for (const [id, source, layer, minzoom, maxzoom] of [
         ['orm-lines-low', 'orm-low', 'standard_railway_line_low', 0, 7],
         ['orm-lines-high', 'orm-high', 'railway_line_high', 7, 24],
@@ -372,25 +407,27 @@ export default function MapView({
             'source-layer': layer,
             minzoom,
             maxzoom,
-            filter: inService,
+            filter: railFilter(latest.current.settings.hiddenRailTypes),
             layout: { visibility, 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': RAIL_RANK },
             paint: { 'line-color': RAIL_COLOR, 'line-width': RAIL_WIDTH, 'line-opacity': 0.9 },
           },
           firstSymbol,
         )
       }
-      for (const [id, source, minzoom, maxzoom] of [
-        ['orm-stations-low', 'orm-stations-low', 4, 7],
-        ['orm-stations-med', 'orm-stations-med', 7, 24],
+      for (const [id, layer, minzoom, maxzoom] of [
+        ['orm-stations-low', 'standard_railway_text_stations_low', 4, 7],
+        ['orm-stations-med', 'standard_railway_text_stations_med', 7, 8],
+        ['orm-stations-high', 'standard_railway_text_stations', 8, 24],
       ] as const) {
         map.addLayer({
           id,
           type: 'circle',
-          source,
-          'source-layer': source.replace('orm-stations-', 'standard_railway_text_stations_'),
+          source: id,
+          'source-layer': layer,
           minzoom,
           maxzoom,
-          layout: { visibility },
+          filter: STATION_FILTER,
+          layout: { visibility: stationVisibility },
           paint: {
             'circle-color': '#ffffff',
             'circle-stroke-color': '#1e293b',
@@ -504,7 +541,7 @@ export default function MapView({
         paint: { 'circle-radius': 9, 'circle-color': '#0f172a', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 },
       })
 
-      for (const id of ['reach-dots', 'orm-stations-low', 'orm-stations-med']) {
+      for (const id of ['reach-dots', ...ORM_STATION_LAYERS]) {
         map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'))
         map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''))
       }
@@ -563,7 +600,7 @@ export default function MapView({
         )
         return
       }
-      const stationHit = hit(['orm-stations-low', 'orm-stations-med'])
+      const stationHit = hit(ORM_STATION_LAYERS)
       if (stationHit) {
         showStationPopup(
           String(stationHit.properties.name || stationHit.properties.label || ''),
@@ -632,6 +669,21 @@ export default function MapView({
           popup.remove()
         })
         el.append(trains)
+        // A town: only offer direct trains if a railway station is there
+        if (category === 'city') {
+          trains.disabled = true
+          trains.textContent = '🚆 Checking for trains…'
+          findStation(name, lat, lng)
+            .then((s) => {
+              trains.disabled = !s
+              trains.textContent = s ? '🚆 Direct trains' : '🚆 No trains here'
+              trains.title = s ? `From ${s.name}` : 'No railway station near this place'
+            })
+            .catch(() => {
+              trains.disabled = false
+              trains.textContent = '🚆 Direct trains'
+            })
+        }
       }
       const popup = new maplibregl.Popup({ className: 'map-popup', offset: 10, maxWidth: '240px' })
         .setLngLat([lng, lat])

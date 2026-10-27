@@ -13,7 +13,7 @@ import { useRates } from './rates'
 import { useBottomSheet } from './useBottomSheet'
 import { SyncChip } from './components/SyncSection'
 import TrainsView from './components/TrainsView'
-import { directTrains, stationNear, type Destination, type DirectQuery, type DirectResult, type Station } from './rail/transitous'
+import { directTrains, findStation, type Destination, type DirectQuery, type DirectResult, type Station } from './rail/transitous'
 import { addDays } from './dates'
 import { describeItem, newItem, trainLeg, type Lookup } from './timeline'
 import { reverse, search, type GeoResult } from './geocode'
@@ -155,7 +155,6 @@ export default function App() {
   useEffect(() => {
     if (!trainsOrigin) {
       setTrainsResult(null)
-      setTrainsError('')
       return
     }
     let cancelled = false
@@ -180,6 +179,7 @@ export default function App() {
   }, [trainsOrigin, trainsQuery])
 
   function showTrains(origin: Station) {
+    setTrainsError('')
     setTrainsOrigin(origin)
     setReachHighlight(null)
     setSelection(null)
@@ -198,8 +198,16 @@ export default function App() {
     setSheetOpen(true)
     setTrainsLoading(true)
     try {
-      showTrains((await stationNear(name, lat, lng)) ?? { name, lat, lng })
+      const station = await findStation(name, lat, lng)
+      if (station) {
+        showTrains(station)
+        return
+      }
+      setTrainsOrigin(null)
+      setTrainsLoading(false)
+      setTrainsError(`No trains stop at or near ${name}.`)
     } catch {
+      // Offline or lookup failed: try from the place itself
       showTrains({ name, lat, lng })
     }
   }

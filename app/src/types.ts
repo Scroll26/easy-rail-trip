@@ -73,6 +73,9 @@ export interface Settings {
   mapLabels: 'all' | 'countries' | 'none'
   /** OpenRailwayMap overlay */
   showRailways: boolean
+  /** Railway line types (see RAIL_TYPES) hidden on the map */
+  hiddenRailTypes: string[]
+  showStations: boolean
   /** Basemap roads, road names and shields */
   showStreets: boolean
   colorPlacesByGroup: boolean
