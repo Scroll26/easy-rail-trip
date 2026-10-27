@@ -43,6 +43,8 @@ interface Props {
   onReachSelect: (stopId: string) => void
   travel: DrawnLine[]
   lineHighlight: string | null
+  /** Open a line's popup (e.g. when it was tapped in the list); `n` changes on every request */
+  linePopup: { id: string; n: number } | null
   onEditLine: (id: string) => void
 }
 
@@ -330,6 +332,7 @@ export default function MapView({
   onReachSelect,
   travel,
   lineHighlight,
+  linePopup,
   onEditLine,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -340,6 +343,9 @@ export default function MapView({
   // Latest values for map event handlers registered once
   const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect })
   latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect }
+  const showLinePopupRef = useRef<
+    ((p: { id: string; kind: 'train' | 'plan'; title: string }, at: maplibregl.LngLatLike) => void) | null
+  >(null)
   const travelRef = useRef(travel)
   travelRef.current = travel
   const reachRef = useRef(reach)
@@ -653,7 +659,7 @@ export default function MapView({
         type: 'fill',
         source: 'veil',
         layout: { visibility: 'none' },
-        paint: { 'fill-color': '#f1f5f9', 'fill-opacity': 0.72 },
+        paint: { 'fill-color': '#0f172a', 'fill-opacity': 0.6 },
       })
 
       // Direct trains: one dot per reachable station, coloured by travel time
@@ -812,7 +818,8 @@ export default function MapView({
       new maplibregl.Popup({ className: 'map-popup', offset: 6, maxWidth: '280px' }).setLngLat(at).setDOMContent(el).addTo(map)
     }
 
-    function showLinePopup(p: { id: string; kind: 'train' | 'plan'; title: string }, at: maplibregl.LngLat) {
+    showLinePopupRef.current = showLinePopup
+    function showLinePopup(p: { id: string; kind: 'train' | 'plan'; title: string }, at: maplibregl.LngLatLike) {
       const el = document.createElement('div')
       el.className = 'add-popup'
       const title = document.createElement('strong')
@@ -994,6 +1001,19 @@ export default function MapView({
     const source = mapRef.current?.getSource('travel') as maplibregl.GeoJSONSource | undefined
     source?.setData(travelGeoJson(travel))
   }, [travel, mapRef])
+
+  // Popup for a line picked in the list, at the middle of its route
+  useEffect(() => {
+    if (!linePopup) return
+    const line = travelRef.current.find((l) => l.id === linePopup.id)
+    if (!line) return
+    const mid = line.coords.length > 2 ? line.coords[Math.floor(line.coords.length / 2)] : [
+      (line.coords[0][0] + line.coords[1][0]) / 2,
+      (line.coords[0][1] + line.coords[1][1]) / 2,
+    ] as [number, number]
+    document.querySelectorAll('.maplibregl-popup').forEach((p) => p.remove())
+    showLinePopupRef.current?.({ id: line.id, kind: line.kind, title: line.title }, mid)
+  }, [linePopup])
 
   useEffect(() => {
     const map = mapRef.current

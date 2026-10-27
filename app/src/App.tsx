@@ -95,6 +95,7 @@ export default function App() {
   const [placesView, setPlacesView] = useState<'places' | 'lines'>('places')
   const [editingLine, setEditingLine] = useState<string | null>(null)
   const [lineHighlight, setLineHighlight] = useState<string | null>(null)
+  const [linePopup, setLinePopup] = useState<{ id: string; n: number } | null>(null)
   // Direct trains
   const [trainsOrigin, setTrainsOrigin] = useState<Station | null>(null)
   const [trainsQuery, setTrainsQuery] = useState<DirectQuery>(() => ({
@@ -512,6 +513,8 @@ export default function App() {
       padding: 100,
       maxZoom: 11,
     })
+    // Same popup as tapping the line on the map (trains, stops, Interrail coverage)
+    setLinePopup((p) => ({ id: line.id, n: (p?.n ?? 0) + 1 }))
   }
   const selectedPlace = selection?.kind === 'place' ? places.find((p) => p.id === selection.id) : undefined
   const selectedPerson = selection?.kind === 'person' ? people.find((p) => p.id === selection.id) : undefined
@@ -728,6 +731,7 @@ export default function App() {
         }}
         travel={travel}
         lineHighlight={lineHighlight}
+        linePopup={linePopup}
         onEditLine={editLine}
       />
 
