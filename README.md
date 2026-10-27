@@ -51,6 +51,7 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Timeline
 |---|---|
 | 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
 | 🗺️ **Map ▾** | **🎫 Interrail:** Highlight / Dim others / Off: which countries your pass covers (teal) · **🛤️ Railway lines** (on by default): switch each kind on or off (high-speed red, main lines orange, branch lines yellow, narrow gauge brown, other grey) and the station dots (tap one for its name) · **⚙️ Other:** map text (All / Countries only / None), 🛣️ streets (off by default), 💱 currencies (colours each currency zone and shows what 1 € is worth there), 🎨 pins in group colours |
+| ✨ **Simple view** (bottom right) | One tap for a clean map: only your pins with names, country names and travel lines. Tap again for everything else |
 | **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
 | ◎ | Show where you are right now |
 
@@ -66,6 +67,20 @@ Places are things you want to see or do: cities, sights, restaurants, hostels, s
 - **Reorder** by dragging the **⠿** handle on the left.
 - **Groups** (e.g. "Museums", "Must-see") get a colour. Tap the colour dot in the group list to change it.
 - The **⚲ filter** button shows only one group or one country.
+
+### Travel lines
+
+Draw where you'll travel, in the **Places** tab under **〰️ Travel lines**:
+
+1. Tap **+ Line**.
+2. Tap the start: one of your pins, a station dot, a town on the map, or any point.
+3. Tap the destination.
+
+There are two kinds, in different colours:
+- **🚆 Train connection** (solid blue): a concrete train, station to station. Drawn automatically when you connect two stations. Trains from your timeline look the same.
+- **🧭 General plan** (dashed purple): roughly where you want to go next, city to city.
+
+Tap a line on the map, or ✏️ in the list, to change its kind, swap its direction or add notes. Lines attached to pins follow them when you move the pins.
 
 ### People
 
