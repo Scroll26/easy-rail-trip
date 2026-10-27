@@ -117,20 +117,25 @@ textarea { resize: vertical; }
     left: 0;
     right: 0;
     bottom: 0;
-    height: 64dvh;
+    height: 92dvh;
     border-radius: 18px 18px 0 0;
-    transform: translateY(calc(64dvh - 104px - env(safe-area-inset-bottom)));
-    transition: transform 0.22s ease;
+    transform: translateY(calc(100% - var(--visible)));
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
     padding-bottom: env(safe-area-inset-bottom);
   }
-  .panel.open { transform: translateY(0); }
+  .panel.sheet-peek { --visible: calc(104px + env(safe-area-inset-bottom)); }
+  .panel.sheet-half { --visible: 55dvh; }
+  .panel.sheet-full { --visible: 100%; }
+  /* The whole header (grabber + tabs) can be dragged */
+  .sheet-header { touch-action: none; cursor: grab; }
   .sheet-handle {
     display: flex;
     justify-content: center;
     border: none;
     background: none;
-    padding: 8px 0 2px;
+    padding: 10px 0 6px;
     width: 100%;
+    cursor: grab;
   }
   .sheet-handle span { width: 42px; height: 5px; border-radius: 3px; background: var(--border); }
   .tabs { padding-top: 0; }

@@ -168,6 +168,17 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
               />
               💱 Currencies
             </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={settings.colorPlacesByGroup && settings.colorPeopleByGroup}
+                onChange={() => {
+                  const on = !(settings.colorPlacesByGroup && settings.colorPeopleByGroup)
+                  updateSettings({ colorPlacesByGroup: on, colorPeopleByGroup: on })
+                }}
+              />
+              🎨 Pins in group colours
+            </label>
           </div>
         )}
       </div>

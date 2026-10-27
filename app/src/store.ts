@@ -27,8 +27,8 @@ const DEFAULT_SETTINGS: Settings = {
   hiddenGroups: [],
   showCurrencies: false,
   mapLabels: 'all',
-  colorPlacesByGroup: false,
-  colorPeopleByGroup: false,
+  colorPlacesByGroup: true,
+  colorPeopleByGroup: true,
 }
 
 export const newId = () =>

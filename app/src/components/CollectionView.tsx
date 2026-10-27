@@ -15,6 +15,8 @@ interface Props {
   /** Country of each item (by id), when it is on the map */
   countryOf: Map<string, { iso: string; name: string }>
   highlightId: string | null
+  /** Show items in their group's colour (same setting as the map pins) */
+  colorByGroup: boolean
   onShow: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (item: Item) => void
@@ -23,7 +25,18 @@ interface Props {
 
 const ALL = '__all'
 
-export default function CollectionView({ kind, items, groups, countryOf, highlightId, onShow, onEdit, onDelete, onAdd }: Props) {
+export default function CollectionView({
+  kind,
+  items,
+  groups,
+  countryOf,
+  highlightId,
+  colorByGroup,
+  onShow,
+  onEdit,
+  onDelete,
+  onAdd,
+}: Props) {
   const [text, setText] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [groupFilter, setGroupFilter] = useState(ALL)
@@ -158,20 +171,25 @@ export default function CollectionView({ kind, items, groups, countryOf, highlig
         }
         renderRow={(i, handle) => {
           const group = i.groupId ? groupById.get(i.groupId) : undefined
+          const groupColor = colorByGroup ? group?.color : undefined
           const country = countryOf.get(i.id)?.name
           let icon: React.ReactNode
           let sub: string[]
           if (isPlace) {
             const p = i as Place
             icon = (
-              <span className="item-icon" style={{ background: STATUSES[p.status].color }}>
+              <span className="item-icon" style={{ background: groupColor ?? STATUSES[p.status].color }}>
                 {CATEGORIES[p.category].icon}
               </span>
             )
             sub = [STATUSES[p.status].label, country ?? '', p.notes]
           } else {
             const p = i as Person
-            icon = <span className="item-icon person">{(p.name || '?')[0].toUpperCase()}</span>
+            icon = (
+              <span className="item-icon person" style={groupColor ? { background: groupColor } : undefined}>
+                {(p.name || '?')[0].toUpperCase()}
+              </span>
+            )
             sub = [p.city || 'No city', p.canStay ? '🛏️ can stay' : '', p.lat == null ? 'not on map' : '']
           }
           return (

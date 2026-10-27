@@ -10,6 +10,7 @@ import CollectionView from './components/CollectionView'
 import MapToolbar from './components/MapToolbar'
 import { countryAt, useCountries } from './countries'
 import { useRates } from './rates'
+import { useBottomSheet } from './useBottomSheet'
 import { addDays } from './dates'
 import { describeItem, newItem, trainLeg, type Lookup } from './timeline'
 import { reverse, search, type GeoResult } from './geocode'
@@ -56,7 +57,8 @@ export default function App() {
   /** Day shown alone on the map (timeline map button) */
   const [mapDay, setMapDay] = useState<string | null>(null)
   const [pick, setPick] = useState<Pick>(null)
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const sheet = useBottomSheet()
+  const setSheetOpen = sheet.setOpen
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<GeoResult[] | null>(null)
   const [searchError, setSearchError] = useState('')
@@ -374,6 +376,7 @@ export default function App() {
             groups={groups}
             countryOf={countryOf}
             highlightId={highlight?.id ?? null}
+            colorByGroup={tab === 'places' ? settings.colorPlacesByGroup : settings.colorPeopleByGroup}
             onShow={(id) => showOnMap({ kind: tab === 'places' ? 'place' : 'person', id })}
             onEdit={(id) => select({ kind: tab === 'places' ? 'place' : 'person', id })}
             onDelete={(item) => confirmDelete({ kind: tab === 'places' ? 'place' : 'person', id: item.id }, item.name)}
@@ -424,33 +427,39 @@ export default function App() {
         </div>
       )}
 
-      <aside className={'panel' + (sheetOpen ? ' open' : '')}>
-        <button className="sheet-handle" onClick={() => setSheetOpen(!sheetOpen)} aria-label="Toggle panel">
-          <span />
-        </button>
-        <nav className="tabs">
-          {(['timeline', 'places', 'people', 'settings'] as Tab[]).map((t) => (
-            <button
-              key={t}
-              className={tab === t && !selection && !editedItem ? 'active' : ''}
-              onClick={() => {
-                setTab(t)
-                setSelection(null)
-                setEditingItem(null)
-                setSheetOpen(true)
-              }}
-              title={t === 'settings' ? 'Settings' : undefined}
-            >
-              {t === 'timeline'
-                ? 'Timeline'
-                : t === 'places'
-                  ? `Places (${places.length})`
-                  : t === 'people'
-                    ? `People (${people.length})`
-                    : '⚙️'}
-            </button>
-          ))}
-        </nav>
+      <aside ref={sheet.panelRef} className={'panel sheet-' + sheet.state}>
+        <div className="sheet-header" {...sheet.headerProps}>
+          <button
+            className="sheet-handle"
+            onClick={() => sheet.setState(sheet.state === 'peek' ? 'half' : 'peek')}
+            aria-label="Drag or tap to resize the panel"
+          >
+            <span />
+          </button>
+          <nav className="tabs">
+            {(['timeline', 'places', 'people', 'settings'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                className={tab === t && !selection && !editedItem ? 'active' : ''}
+                onClick={() => {
+                  setTab(t)
+                  setSelection(null)
+                  setEditingItem(null)
+                  setSheetOpen(true)
+                }}
+                title={t === 'settings' ? 'Settings' : undefined}
+              >
+                {t === 'timeline'
+                  ? 'Timeline'
+                  : t === 'places'
+                    ? `Places (${places.length})`
+                    : t === 'people'
+                      ? `People (${people.length})`
+                      : '⚙️'}
+              </button>
+            ))}
+          </nav>
+        </div>
         <div className="panel-body">{body}</div>
       </aside>
     </div>
