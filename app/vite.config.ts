@@ -46,6 +46,16 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // OpenRailwayMap overlay: tiles change rarely, so serve from cache first
+            urlPattern: ({ url }) => url.hostname === 'openrailwaymap.app',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'railways',
+              expiration: { maxEntries: 10000, maxAgeSeconds: 60 * DAY },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),

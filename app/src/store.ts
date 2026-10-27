@@ -27,6 +27,8 @@ const DEFAULT_SETTINGS: Settings = {
   hiddenGroups: [],
   showCurrencies: false,
   mapLabels: 'all',
+  showRailways: true,
+  showStreets: false,
   colorPlacesByGroup: true,
   colorPeopleByGroup: true,
 }

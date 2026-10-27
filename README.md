@@ -40,7 +40,7 @@ Rail Planner is a *web app*: you open it in the browser once, then "install" it.
 
 ## 2. How to use it
 
-The screen has two parts: the **map**, and the **panel** with the tabs *Timeline*, *Places*, *People* and ⚙️ *Settings*.
+The screen has two parts: the **map**, and the **panel** with the tabs *Timeline*, *Places*, *People*, 🚆 *Trains* and ⚙️ *Settings*.
 
 - **On a computer**, the panel is on the left.
 - **On a phone**, the panel sits at the bottom. **Drag the tab bar up or down** (or tap the little grey bar) to make it bigger or smaller.
@@ -51,11 +51,11 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Timeline
 |---|---|
 | 🚆 **Interrail** – Highlight / Dim others / Off | Shows which countries your Interrail pass covers (teal) |
 | 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
-| 🗺️ **Map ▾** | **Map text**: All / Countries only / None (for a cleaner map) · **💱 Currencies**: colours each currency zone and shows what 1 € is worth there · **🎨 Pins in group colours** |
+| 🗺️ **Map ▾** | **Map text**: All / Countries only / None (for a cleaner map) · **🛤️ Railway lines** (on by default: high-speed red, main lines orange, branch lines yellow; tap a station dot for its name) · **🛣️ Streets** (off by default) · **💱 Currencies**: colours each currency zone and shows what 1 € is worth there · **🎨 Pins in group colours** |
 | **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
 | ◎ | Show where you are right now |
 
-**Tip:** tap a city, station or sight written on the map and choose **"+ Add to places"**.
+**Tip:** tap a city, station or sight on the map and choose **"+ Add to places"** or **"🚆 Direct trains"**.
 
 ### Places
 
@@ -86,6 +86,17 @@ Your trip day by day. **Only days you actually plan are shown**, so a long trip 
 4. Things without a date yet go into **Unscheduled** at the top.
 5. **Drag** entries (⠿ handle) to reorder them or move them to another day.
 6. Tap **🗺️** on a day to see only that day on the map, numbered, with your train lines.
+
+### 🚆 Trains: where can I go without changing?
+
+Choose a station (search it, tap a station dot on the map, or pick one of your places). Every station you can reach **without changing trains** appears as a coloured dot: green is close, red is far. The list shows the travel time to each one.
+
+- **Leaving:** morning, midday or evening (evening includes night trains)
+- **Up to:** 4, 8 or 12 hours of travel
+- **Only trains without compulsory reservation:** handy with an Interrail pass
+- Tap 🚆 next to a destination to see **its** direct trains and hop along your route; tap **＋** to add it to your places.
+
+Times count from the departure time you chose, so they include waiting for the first train. The timetables are not live, so check with the railway before you travel. Lookups you've done before also work offline.
 
 ### Settings ⚙️
 
@@ -137,4 +148,4 @@ npm run dev
 
 React + TypeScript + Vite, MapLibre GL, Yjs (local storage in IndexedDB, merged through Google Drive's app data folder). Every push to `main` builds and publishes to GitHub Pages (`.github/workflows/deploy.yml`).
 
-Map data © OpenStreetMap contributors · tiles by OpenFreeMap · borders from Natural Earth · geocoding by Nominatim · exchange rates by open.er-api.com
+Map data © OpenStreetMap contributors · tiles by OpenFreeMap · railway lines by [OpenRailwayMap](https://openrailwaymap.app) · timetables by [Transitous](https://transitous.org) ([sources](https://transitous.org/sources/)) · borders from Natural Earth · geocoding by Nominatim · exchange rates by open.er-api.com

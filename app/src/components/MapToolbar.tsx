@@ -163,6 +163,22 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
             <label className="check">
               <input
                 type="checkbox"
+                checked={settings.showRailways}
+                onChange={() => updateSettings({ showRailways: !settings.showRailways })}
+              />
+              🛤️ Railway lines
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={settings.showStreets}
+                onChange={() => updateSettings({ showStreets: !settings.showStreets })}
+              />
+              🛣️ Streets
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
                 checked={settings.showCurrencies}
                 onChange={() => updateSettings({ showCurrencies: !settings.showCurrencies })}
               />

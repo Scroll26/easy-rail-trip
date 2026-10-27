@@ -12,6 +12,8 @@ import { countryAt, useCountries } from './countries'
 import { useRates } from './rates'
 import { useBottomSheet } from './useBottomSheet'
 import { SyncChip } from './components/SyncSection'
+import TrainsView from './components/TrainsView'
+import { directTrains, stationNear, type Destination, type DirectQuery, type DirectResult, type Station } from './rail/transitous'
 import { addDays } from './dates'
 import { describeItem, newItem, trainLeg, type Lookup } from './timeline'
 import { reverse, search, type GeoResult } from './geocode'
@@ -33,7 +35,14 @@ import {
 } from './store'
 import type { Person, Place, PlaceCategory, Selection, TimelineItem } from './types'
 
-type Tab = 'places' | 'people' | 'timeline' | 'settings'
+type Tab = 'places' | 'people' | 'timeline' | 'trains' | 'settings'
+
+/** Next Wednesday: a normal weekday, so the timetable isn't a weekend one */
+function nextWeekday() {
+  const d = new Date()
+  d.setDate(d.getDate() + (((3 - d.getDay() + 7) % 7) || 7))
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 type Pick = { kind: 'new-place' } | { kind: 'move-place'; id: string } | { kind: 'person'; id: string } | null
 
 const NEW_PLACE_NAME = 'New place'
@@ -57,6 +66,18 @@ export default function App() {
   const [highlightItem, setHighlightItem] = useState<string | null>(null)
   /** Day shown alone on the map (timeline map button) */
   const [mapDay, setMapDay] = useState<string | null>(null)
+  // Direct trains
+  const [trainsOrigin, setTrainsOrigin] = useState<Station | null>(null)
+  const [trainsQuery, setTrainsQuery] = useState<DirectQuery>(() => ({
+    date: nextWeekday(),
+    hour: 6,
+    maxHours: 8,
+    noReservation: false,
+  }))
+  const [trainsResult, setTrainsResult] = useState<DirectResult | null>(null)
+  const [trainsLoading, setTrainsLoading] = useState(false)
+  const [trainsError, setTrainsError] = useState('')
+  const [reachHighlight, setReachHighlight] = useState<string | null>(null)
   const [pick, setPick] = useState<Pick>(null)
   const sheet = useBottomSheet()
   const setSheetOpen = sheet.setOpen
@@ -129,6 +150,65 @@ export default function App() {
     // Only when the chosen day changes, not on every edit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapDay])
+
+  // Look up direct trains whenever the station or the options change
+  useEffect(() => {
+    if (!trainsOrigin) {
+      setTrainsResult(null)
+      setTrainsError('')
+      return
+    }
+    let cancelled = false
+    setTrainsLoading(true)
+    setTrainsError('')
+    directTrains(trainsOrigin, trainsQuery)
+      .then((r) => {
+        if (cancelled) return
+        setTrainsResult(r)
+        if (r.destinations.length === 0)
+          setTrainsError('No direct trains found. Try another time of day, a longer trip, or a nearby bigger station.')
+      })
+      .catch((e: Error) => {
+        if (cancelled) return
+        setTrainsResult(null)
+        setTrainsError(navigator.onLine ? e.message : 'Timetables need an internet connection (lookups you did before still work).')
+      })
+      .finally(() => !cancelled && setTrainsLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [trainsOrigin, trainsQuery])
+
+  function showTrains(origin: Station) {
+    setTrainsOrigin(origin)
+    setReachHighlight(null)
+    setSelection(null)
+    setEditingItem(null)
+    setTab('trains')
+    setSheetOpen(true)
+  }
+
+  /** From a tapped station (exact spot) or a city/place (its main station, found by name) */
+  async function trainsFrom(name: string, lat: number, lng: number, isStation: boolean) {
+    if (isStation) {
+      showTrains({ name, lat, lng })
+      return
+    }
+    setTab('trains')
+    setSheetOpen(true)
+    setTrainsLoading(true)
+    try {
+      showTrains((await stationNear(name, lat, lng)) ?? { name, lat, lng })
+    } catch {
+      showTrains({ name, lat, lng })
+    }
+  }
+
+  function showDestination(d: Destination) {
+    setReachHighlight(d.stopId)
+    if (window.matchMedia('(max-width: 799px)').matches) setSheetOpen(false)
+    mapRef.current?.flyTo({ center: [d.lng, d.lat], zoom: Math.max(9, mapRef.current.getZoom()) })
+  }
 
   function select(sel: Selection) {
     setSelection(sel)
@@ -291,6 +371,7 @@ export default function App() {
         scheduled={timeline.filter((i) => i.placeId === selectedPlace.id)}
         onClose={() => setSelection(null)}
         onMove={() => startPick({ kind: 'move-place', id: selectedPlace.id })}
+        onTrains={() => trainsFrom(selectedPlace.name, selectedPlace.lat, selectedPlace.lng, selectedPlace.category === 'station')}
         onAddToTimeline={() => addPlaceToTimeline(selectedPlace.id)}
         onOpenItem={(id) => {
           setTab('timeline')
@@ -308,6 +389,26 @@ export default function App() {
       />
     )
   else if (tab === 'settings') body = <SettingsView settings={settings} />
+  else if (tab === 'trains')
+    body = (
+      <TrainsView
+        origin={trainsOrigin}
+        query={trainsQuery}
+        result={trainsResult}
+        loading={trainsLoading}
+        error={trainsError}
+        places={places}
+        highlight={reachHighlight}
+        onOrigin={(s) => (s ? showTrains(s) : setTrainsOrigin(null))}
+        onOriginFromPlace={(p) => trainsFrom(p.name, p.lat, p.lng, p.category === 'station')}
+        onQuery={setTrainsQuery}
+        onShow={showDestination}
+        onAdd={(d) => {
+          setTab('places')
+          createPlace(d.lat, d.lng, d.name, 'station')
+        }}
+      />
+    )
   else if (tab === 'timeline')
     body = (
       <TimelineView
@@ -406,6 +507,9 @@ export default function App() {
           setTab('places')
           createPlace(lat, lng, name, category)
         }}
+        reach={trainsResult}
+        reachHighlight={reachHighlight}
+        onTrainsFrom={trainsFrom}
       />
 
       <MapToolbar settings={settings} groups={groups} ratesNote={ratesNote} />
@@ -439,7 +543,7 @@ export default function App() {
             <span />
           </button>
           <nav className="tabs">
-            {(['timeline', 'places', 'people', 'settings'] as Tab[]).map((t) => (
+            {(['timeline', 'places', 'people', 'trains', 'settings'] as Tab[]).map((t) => (
               <button
                 key={t}
                 className={tab === t && !selection && !editedItem ? 'active' : ''}
@@ -457,7 +561,9 @@ export default function App() {
                     ? `Places (${places.length})`
                     : t === 'people'
                       ? `People (${people.length})`
-                      : '⚙️'}
+                      : t === 'trains'
+                        ? '🚆 Trains'
+                        : '⚙️'}
               </button>
             ))}
           </nav>

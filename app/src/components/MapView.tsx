@@ -6,6 +6,7 @@ import { COUNTRIES_URL } from '../countries'
 import { COUNTRY_LABELS } from '../data/countryLabels'
 import { COUNTRY_CURRENCY, CURRENCY_STYLE, NO_CURRENCY_LABEL } from '../data/currencies'
 import { formatRate, type Rates } from '../rates'
+import { formatMinutes, type DirectResult } from '../rail/transitous'
 import { NO_GROUP, type Group, type Person, type Place, type PlaceCategory, type Selection, type Settings } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -28,7 +29,47 @@ interface Props {
   groups: Group[]
   /** A city / POI label of the basemap was tapped and the user wants it in their places */
   onAddFromMap: (name: string, lat: number, lng: number, category: PlaceCategory) => void
+  /** Direct-train lookup shown on the map */
+  reach: DirectResult | null
+  reachHighlight: string | null
+  /** Show direct trains from a station (exact spot) or a city (find its main station) */
+  onTrainsFrom: (name: string, lat: number, lng: number, isStation: boolean) => void
 }
+
+const reachGeoJson = (reach: DirectResult | null): GeoJSON.FeatureCollection => ({
+  type: 'FeatureCollection',
+  features: (reach?.destinations ?? []).map((d) => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [d.lng, d.lat] },
+    properties: {
+      stopId: d.stopId,
+      name: d.name,
+      minutes: d.minutes,
+      importance: d.importance,
+      label: `${d.name}\n${formatMinutes(d.minutes)}`,
+    },
+  })),
+})
+
+const originGeoJson = (reach: DirectResult | null): GeoJSON.FeatureCollection => ({
+  type: 'FeatureCollection',
+  features: reach
+    ? [{ type: 'Feature', geometry: { type: 'Point', coordinates: [reach.origin.lng, reach.origin.lat] }, properties: { name: reach.origin.name } }]
+    : [],
+})
+
+// Travel time colours: green (close) → yellow → red → dark red (far)
+const REACH_COLOR: maplibregl.ExpressionSpecification = [
+  'interpolate',
+  ['linear'],
+  ['get', 'minutes'],
+  0, '#15803d',
+  90, '#65a30d',
+  180, '#ca8a04',
+  300, '#ea580c',
+  480, '#dc2626',
+  720, '#7f1d1d',
+]
 
 // Basemap labels that can be tapped to add them as a place
 const CLICKABLE_LAYERS = [
@@ -59,6 +100,8 @@ function categoryFor(f: maplibregl.MapGeoJSONFeature): PlaceCategory {
 function applyLabels(map: maplibregl.Map, mode: Settings['mapLabels']) {
   for (const layer of map.getStyle().layers) {
     if (layer.type !== 'symbol' || OWN_SYMBOL_LAYERS.has(layer.id)) continue
+    const sourceLayer = (layer as { 'source-layer'?: string })['source-layer']
+    if (sourceLayer === 'transportation' || sourceLayer === 'transportation_name') continue
     const show = mode === 'all' || (mode === 'countries' && layer.id.startsWith('label_country'))
     map.setLayoutProperty(layer.id, 'visibility', show ? 'visible' : 'none')
   }
@@ -92,6 +135,51 @@ function currencyPoints(rates: Rates | null): GeoJSON.FeatureCollection {
   }
   return { type: 'FeatureCollection', features }
 }
+
+const ORM_LAYERS = ['orm-lines-low', 'orm-lines-high', 'orm-stations-low', 'orm-stations-med']
+
+/**
+ * Railway overlay on/off, and the basemap's streets. Streets are hidden by default: this
+ * is a rail trip planner. The basemap's own thin rail lines go away while the overlay is on.
+ */
+function applyRailwaysAndStreets(map: maplibregl.Map, settings: Settings) {
+  for (const id of ORM_LAYERS)
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', settings.showRailways ? 'visible' : 'none')
+  for (const layer of map.getStyle().layers) {
+    const sourceLayer = (layer as { 'source-layer'?: string })['source-layer']
+    if (sourceLayer !== 'transportation' && sourceLayer !== 'transportation_name') continue
+    const isRail = layer.id.includes('rail')
+    const show = isRail ? !settings.showRailways : settings.showStreets
+    // Road names and shields also follow the "map text" setting
+    const textAllowed = layer.type !== 'symbol' || settings.mapLabels === 'all'
+    map.setLayoutProperty(layer.id, 'visibility', show && textAllowed ? 'visible' : 'none')
+  }
+}
+
+// OpenRailwayMap standard colours: high-speed red, main lines orange, branch lines yellow
+const RAIL_COLOR: maplibregl.ExpressionSpecification = [
+  'case',
+  ['to-boolean', ['get', 'highspeed']], '#e3141b',
+  ['==', ['get', 'usage'], 'main'], '#ff8100',
+  ['==', ['get', 'usage'], 'branch'], '#d9b400',
+  ['in', ['get', 'feature'], ['literal', ['narrow_gauge']]], '#a0522d',
+  '#8e8e8e',
+]
+const RAIL_RANK: maplibregl.ExpressionSpecification = [
+  'case',
+  ['to-boolean', ['get', 'highspeed']], 3,
+  ['==', ['get', 'usage'], 'main'], 2,
+  ['==', ['get', 'usage'], 'branch'], 1,
+  0,
+]
+const RAIL_WIDTH: maplibregl.ExpressionSpecification = [
+  'interpolate',
+  ['linear'],
+  ['zoom'],
+  4, ['case', ['to-boolean', ['get', 'highspeed']], 1.6, ['==', ['get', 'usage'], 'main'], 1.2, 0.6],
+  9, ['case', ['to-boolean', ['get', 'highspeed']], 3, ['==', ['get', 'usage'], 'main'], 2.4, 1.4],
+  14, ['case', ['to-boolean', ['get', 'highspeed']], 5, ['==', ['get', 'usage'], 'main'], 4, 2.5],
+]
 
 // Our own text layers: never hidden by the "map text" setting
 const OWN_SYMBOL_LAYERS = new Set(['cur-labels'])
@@ -172,6 +260,9 @@ export default function MapView({
   rates,
   groups,
   onAddFromMap,
+  reach,
+  reachHighlight,
+  onTrainsFrom,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const markers = useRef(new Map<string, maplibregl.Marker>())
@@ -179,8 +270,10 @@ export default function MapView({
   const currencyRef = useRef(currencyData)
   currencyRef.current = currencyData
   // Latest values for map event handlers registered once
-  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap })
-  latest.current = { picking, onPick, onSelect, settings, onAddFromMap }
+  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom })
+  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom }
+  const reachRef = useRef(reach)
+  reachRef.current = reach
   const legsRef = useRef(legs)
   legsRef.current = legs
 
@@ -232,6 +325,81 @@ export default function MapView({
       )
       applyInterrail(map, latest.current.settings)
 
+      // OpenRailwayMap (vector): where the tracks run, styled like its standard view.
+      // Low zooms use a simplified network, higher zooms the detailed one.
+      const ORM = 'https://openrailwaymap.app/'
+      const ormAttribution = '<a href="https://openrailwaymap.app/" target="_blank">OpenRailwayMap</a>'
+      map.addSource('orm-low', {
+        type: 'vector',
+        tiles: [ORM + 'standard_railway_line_low/{z}/{x}/{y}'],
+        maxzoom: 7,
+        attribution: ormAttribution,
+      })
+      map.addSource('orm-high', {
+        type: 'vector',
+        tiles: [ORM + 'railway_line_high,railway_text_km/{z}/{x}/{y}'],
+        minzoom: 7,
+        maxzoom: 14,
+        attribution: ormAttribution,
+      })
+      map.addSource('orm-stations-low', {
+        type: 'vector',
+        tiles: [ORM + 'standard_railway_text_stations_low/{z}/{x}/{y}'],
+        minzoom: 4,
+        maxzoom: 7,
+      })
+      map.addSource('orm-stations-med', {
+        type: 'vector',
+        tiles: [ORM + 'standard_railway_text_stations_med/{z}/{x}/{y}'],
+        minzoom: 7,
+        maxzoom: 8,
+      })
+      const visibility = latest.current.settings.showRailways ? 'visible' : 'none'
+      const inService: maplibregl.ExpressionSpecification = [
+        'all',
+        ['==', ['coalesce', ['get', 'state'], 'present'], 'present'],
+        ['!', ['has', 'service']],
+      ]
+      for (const [id, source, layer, minzoom, maxzoom] of [
+        ['orm-lines-low', 'orm-low', 'standard_railway_line_low', 0, 7],
+        ['orm-lines-high', 'orm-high', 'railway_line_high', 7, 24],
+      ] as const) {
+        map.addLayer(
+          {
+            id,
+            type: 'line',
+            source,
+            'source-layer': layer,
+            minzoom,
+            maxzoom,
+            filter: inService,
+            layout: { visibility, 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': RAIL_RANK },
+            paint: { 'line-color': RAIL_COLOR, 'line-width': RAIL_WIDTH, 'line-opacity': 0.9 },
+          },
+          firstSymbol,
+        )
+      }
+      for (const [id, source, minzoom, maxzoom] of [
+        ['orm-stations-low', 'orm-stations-low', 4, 7],
+        ['orm-stations-med', 'orm-stations-med', 7, 24],
+      ] as const) {
+        map.addLayer({
+          id,
+          type: 'circle',
+          source,
+          'source-layer': source.replace('orm-stations-', 'standard_railway_text_stations_'),
+          minzoom,
+          maxzoom,
+          layout: { visibility },
+          paint: {
+            'circle-color': '#ffffff',
+            'circle-stroke-color': '#1e293b',
+            'circle-stroke-width': 1.5,
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.2, 8, 3.5, 12, 5],
+          },
+        })
+      }
+
       // Currency overlay: every currency gets its own coloured zone
       map.addLayer(
         {
@@ -282,6 +450,7 @@ export default function MapView({
         'label_other',
       )
       applyLabels(map, latest.current.settings.mapLabels)
+      applyRailwaysAndStreets(map, latest.current.settings)
 
       map.addSource('legs', { type: 'geojson', data: legsGeoJson(legsRef.current) })
       map.addLayer({
@@ -298,7 +467,76 @@ export default function MapView({
         layout: { 'line-cap': 'round' },
         paint: { 'line-color': '#9a3412', 'line-width': 3, 'line-dasharray': [2, 1.5] },
       })
+
+      // Direct trains: one dot per reachable station, coloured by travel time
+      map.addSource('reach', { type: 'geojson', data: reachGeoJson(reachRef.current) })
+      map.addSource('reach-origin', { type: 'geojson', data: originGeoJson(reachRef.current) })
+      map.addLayer({
+        id: 'reach-dots',
+        type: 'circle',
+        source: 'reach',
+        paint: {
+          'circle-color': REACH_COLOR,
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            4, ['interpolate', ['linear'], ['get', 'importance'], 0, 2.5, 0.5, 4.5],
+            9, ['interpolate', ['linear'], ['get', 'importance'], 0, 5, 0.5, 8],
+          ],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1.2,
+        },
+        // Important stations drawn on top
+        layout: { 'circle-sort-key': ['get', 'importance'] },
+      })
+      map.addLayer({
+        id: 'reach-highlight',
+        type: 'circle',
+        source: 'reach',
+        filter: ['==', ['get', 'stopId'], ''],
+        paint: { 'circle-radius': 13, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#facc15', 'circle-stroke-width': 4 },
+      })
+      map.addLayer({
+        id: 'reach-origin',
+        type: 'circle',
+        source: 'reach-origin',
+        paint: { 'circle-radius': 9, 'circle-color': '#0f172a', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 },
+      })
+
+      for (const id of ['reach-dots', 'orm-stations-low', 'orm-stations-med']) {
+        map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'))
+        map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''))
+      }
     })
+
+    function showReachPopup(p: { name: string; minutes: number; stopId: string }, [lng, lat]: [number, number]) {
+      const el = document.createElement('div')
+      el.className = 'add-popup'
+      const title = document.createElement('strong')
+      title.textContent = p.name
+      const time = document.createElement('span')
+      time.className = 'muted small'
+      time.textContent = `${formatMinutes(p.minutes)} without changing`
+      const trains = document.createElement('button')
+      trains.textContent = '🚆 Direct trains from here'
+      const add = document.createElement('button')
+      add.className = 'primary'
+      add.textContent = '+ Add to places'
+      el.append(title, time, trains, add)
+      const popup = new maplibregl.Popup({ className: 'map-popup', offset: 10, maxWidth: '240px' })
+        .setLngLat([lng, lat])
+        .setDOMContent(el)
+        .addTo(map)
+      trains.addEventListener('click', () => {
+        latest.current.onTrainsFrom(p.name, lat, lng, true)
+        popup.remove()
+      })
+      add.addEventListener('click', () => {
+        latest.current.onAddFromMap(p.name, lat, lng, 'station')
+        popup.remove()
+      })
+    }
 
     map.on('click', (e) => {
       const { picking, onPick, onSelect } = latest.current
@@ -309,16 +547,63 @@ export default function MapView({
       }
       onSelect(null)
       const { x, y } = e.point
-      const layers = CLICKABLE_LAYERS.filter((id) => map.getLayer(id))
-      const hit = map.queryRenderedFeatures(
-        [
-          [x - 8, y - 8],
-          [x + 8, y + 8],
-        ],
-        { layers },
-      )[0]
-      if (hit) showAddPopup(hit, e.lngLat)
+      const box: [maplibregl.PointLike, maplibregl.PointLike] = [
+        [x - 8, y - 8],
+        [x + 8, y + 8],
+      ]
+      const hit = (layers: string[]) =>
+        map.queryRenderedFeatures(box, { layers: layers.filter((id) => map.getLayer(id)) })[0]
+
+      // Most specific first: a direct-train result, a railway station, then any map label
+      const reachHit = hit(['reach-dots'])
+      if (reachHit) {
+        showReachPopup(
+          reachHit.properties as { name: string; minutes: number; stopId: string },
+          (reachHit.geometry as GeoJSON.Point).coordinates as [number, number],
+        )
+        return
+      }
+      const stationHit = hit(['orm-stations-low', 'orm-stations-med'])
+      if (stationHit) {
+        showStationPopup(
+          String(stationHit.properties.name || stationHit.properties.label || ''),
+          (stationHit.geometry as GeoJSON.Point).coordinates as [number, number],
+        )
+        return
+      }
+      const labelHit = hit(CLICKABLE_LAYERS)
+      if (labelHit) showAddPopup(labelHit, e.lngLat)
     })
+
+    /** Railway station dot: its full name, plus direct trains / add */
+    function showStationPopup(name: string, [lng, lat]: [number, number]) {
+      if (!name) return
+      const el = document.createElement('div')
+      el.className = 'add-popup'
+      const title = document.createElement('strong')
+      title.textContent = name
+      const kind = document.createElement('span')
+      kind.className = 'muted small'
+      kind.textContent = 'Railway station'
+      const trains = document.createElement('button')
+      trains.textContent = '🚆 Direct trains'
+      const add = document.createElement('button')
+      add.className = 'primary'
+      add.textContent = '+ Add to places'
+      el.append(title, kind, trains, add)
+      const popup = new maplibregl.Popup({ className: 'map-popup', offset: 8, maxWidth: '240px' })
+        .setLngLat([lng, lat])
+        .setDOMContent(el)
+        .addTo(map)
+      trains.addEventListener('click', () => {
+        latest.current.onTrainsFrom(name, lat, lng, true)
+        popup.remove()
+      })
+      add.addEventListener('click', () => {
+        latest.current.onAddFromMap(name, lat, lng, 'station')
+        popup.remove()
+      })
+    }
 
     /** Popup on a tapped city / POI label with a button to add it to the places */
     function showAddPopup(f: maplibregl.MapGeoJSONFeature, clicked: maplibregl.LngLat) {
@@ -338,6 +623,16 @@ export default function MapView({
       btn.className = 'primary'
       btn.textContent = '+ Add to places'
       el.append(title, kind, btn)
+      const category = categoryFor(f)
+      if (category === 'station' || category === 'city') {
+        const trains = document.createElement('button')
+        trains.textContent = '🚆 Direct trains'
+        trains.addEventListener('click', () => {
+          latest.current.onTrainsFrom(name, lat, lng, category === 'station')
+          popup.remove()
+        })
+        el.append(trains)
+      }
       const popup = new maplibregl.Popup({ className: 'map-popup', offset: 10, maxWidth: '240px' })
         .setLngLat([lng, lat])
         .setDOMContent(el)
@@ -361,7 +656,26 @@ export default function MapView({
     if (!map?.getLayer('ir-fill')) return
     applyInterrail(map, settings)
     applyLabels(map, settings.mapLabels)
+    applyRailwaysAndStreets(map, settings)
   }, [settings, mapRef])
+
+  // Direct trains: update dots and zoom to show them all
+  useEffect(() => {
+    const map = mapRef.current
+    const source = map?.getSource('reach') as maplibregl.GeoJSONSource | undefined
+    if (!map || !source) return
+    source.setData(reachGeoJson(reach))
+    ;(map.getSource('reach-origin') as maplibregl.GeoJSONSource).setData(originGeoJson(reach))
+    if (!reach || reach.destinations.length === 0) return
+    const bounds = new maplibregl.LngLatBounds([reach.origin.lng, reach.origin.lat], [reach.origin.lng, reach.origin.lat])
+    for (const d of reach.destinations) bounds.extend([d.lng, d.lat])
+    map.fitBounds(bounds, { padding: 60, maxZoom: 9 })
+  }, [reach, mapRef])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map?.getLayer('reach-highlight')) map.setFilter('reach-highlight', ['==', ['get', 'stopId'], reachHighlight ?? ''])
+  }, [reachHighlight, mapRef])
 
   useEffect(() => {
     const source = mapRef.current?.getSource('legs') as maplibregl.GeoJSONSource | undefined

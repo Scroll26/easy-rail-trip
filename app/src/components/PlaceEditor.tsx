@@ -9,11 +9,12 @@ interface Props {
   scheduled: TimelineItem[]
   onClose: () => void
   onMove: () => void
+  onTrains: () => void
   onAddToTimeline: () => void
   onOpenItem: (id: string) => void
 }
 
-export default function PlaceEditor({ place, scheduled, onClose, onMove, onAddToTimeline, onOpenItem }: Props) {
+export default function PlaceEditor({ place, scheduled, onClose, onMove, onTrains, onAddToTimeline, onOpenItem }: Props) {
   const set = (patch: Partial<Place>) => savePlace({ ...place, ...patch })
 
   return (
@@ -96,6 +97,7 @@ export default function PlaceEditor({ place, scheduled, onClose, onMove, onAddTo
       </div>
 
       <div className="row">
+        <button onClick={onTrains}>🚆 Direct trains</button>
         <button onClick={onMove}>📍 Move pin</button>
         <a
           className="button"

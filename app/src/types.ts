@@ -71,6 +71,10 @@ export interface Settings {
   showCurrencies: boolean
   /** Basemap text: everything, only country names, or nothing */
   mapLabels: 'all' | 'countries' | 'none'
+  /** OpenRailwayMap overlay */
+  showRailways: boolean
+  /** Basemap roads, road names and shields */
+  showStreets: boolean
   colorPlacesByGroup: boolean
   colorPeopleByGroup: boolean
 }

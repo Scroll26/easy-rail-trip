@@ -532,3 +532,18 @@ p.empty { padding: 12px 4px; line-height: 1.5; }
 
 .last-sync { margin-top: -6px; }
 .last-sync b { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+/* ---------- Trains ---------- */
+.trains { display: flex; flex-direction: column; gap: 10px; }
+.trains .intro { line-height: 1.5; margin: 4px 0; }
+.origin-card { display: flex; align-items: center; gap: 10px; background: var(--bg-2); border-radius: 12px; padding: 8px 8px 8px 12px; }
+.origin-dot { width: 14px; height: 14px; border-radius: 50%; background: #0f172a; box-shadow: 0 0 0 3px #fff, 0 0 0 4px var(--border); flex: none; }
+.train-options { display: flex; flex-direction: column; gap: 10px; }
+.train-options .segmented { align-self: flex-start; }
+.reach-summary { margin: 4px 0 0; }
+.legend { display: flex; align-items: center; gap: 8px; }
+.legend-bar { width: 120px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #15803d, #65a30d, #ca8a04, #ea580c, #dc2626, #7f1d1d); }
+.reach-time { min-width: 62px; color: var(--fg); }
+.attribution { line-height: 1.5; margin-top: 8px; }
+.attribution a { color: var(--accent); }
+.add-popup button + button { margin-top: 2px; }
