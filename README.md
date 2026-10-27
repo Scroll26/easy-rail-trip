@@ -1,19 +1,132 @@
 # Rail Planner
 
-An offline-first trip planner for Interrail journeys across Europe. It is an installable web app (PWA) that runs on Android and Windows, with no server and no costs.
+A free trip planner for Interrail journeys through Europe. Put the places you want to see and the people you want to visit on a map, plan your days, and keep everything with you, even without internet.
 
-Live app: https://scroll26.github.io/rail-planner/
+**👉 Open the app: https://scroll26.github.io/rail-planner/**
 
-## What it does
+- **Free.** No account, no ads, no subscription.
+- **Works offline.** Once installed, it opens and works without signal (search and new map areas need internet).
+- **Private.** Your trip is stored on your own device, not on any server. You can optionally sync it through your own Google Drive.
+- **Phone and computer.** The same app runs on Android, iPhone, Windows and Mac.
 
-- Map with the Interrail countries highlighted, currency zones with current euro rates, and a choice of how much map text to show
-- Places and people with notes, groups (with colours), filters by group or country, and drag-to-reorder
-- Tap a city or point of interest on the map to add it to your places
-- Timeline with only the days you plan, collapsed gaps, trains, stays and notes, plus a one-day map view
+---
 
-Trip data is stored only on your own devices (IndexedDB) and is never uploaded to this repository.
+## 1. Install it
 
-## Development
+Rail Planner is a *web app*: you open it in the browser once, then "install" it. After that it has its own icon and opens full-screen like any other app. You don't need an app store, and installing takes a few seconds.
+
+### Android (Chrome)
+
+1. Open **https://scroll26.github.io/rail-planner/** in **Chrome**.
+2. Tap the **⋮** menu (top right).
+3. Tap **"Install app"** (on some phones: **"Add to Home screen"** → **"Install"**).
+4. The Rail Planner icon is now on your home screen and in your app list.
+
+### iPhone / iPad (Safari)
+
+1. Open the link in **Safari** (it must be Safari).
+2. Tap the **Share** button (the square with an arrow pointing up).
+3. Scroll down and tap **"Add to Home Screen"**, then **"Add"**.
+
+### Windows / Mac (Chrome or Edge)
+
+1. Open the link in **Chrome** or **Microsoft Edge**.
+2. Click the **install icon** at the right end of the address bar (a small screen with a down-arrow), or open the browser menu → **"Install Rail Planner"** (Edge: **Apps → Install this site as an app**).
+3. It opens in its own window. You'll find it in the Start menu or Launchpad.
+
+> You can also just use it in a normal browser tab without installing. Installing makes it easier to find and better at working offline.
+
+---
+
+## 2. How to use it
+
+The screen has two parts: the **map**, and the **panel** with the tabs *Timeline*, *Places*, *People* and ⚙️ *Settings*.
+
+- **On a computer**, the panel is on the left.
+- **On a phone**, the panel sits at the bottom. **Drag the tab bar up or down** (or tap the little grey bar) to make it bigger or smaller.
+
+### The map
+
+| Button | What it does |
+|---|---|
+| 🚆 **Interrail** – Highlight / Dim others / Off | Shows which countries your Interrail pass covers (teal) |
+| 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
+| 🗺️ **Map ▾** | **Map text**: All / Countries only / None (for a cleaner map) · **💱 Currencies**: colours each currency zone and shows what 1 € is worth there · **🎨 Pins in group colours** |
+| **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
+| ◎ | Show where you are right now |
+
+**Tip:** tap a city, station or sight written on the map and choose **"+ Add to places"**.
+
+### Places
+
+Places are things you want to see or do: cities, sights, restaurants, hostels, stations.
+
+- **Add one:** search for it at the top and tap **+ Add**, tap **+ Place** and then the map, or tap a name on the map.
+- **Each row** has three buttons: 🗂️ **group**, ✏️ **edit**, 🗑️ **delete**.
+- **Tap the row itself** to fly to it on the map.
+- **Reorder** by dragging the **⠿** handle on the left.
+- **Groups** (e.g. "Museums", "Must-see") get a colour. Tap the colour dot in the group list to change it.
+- The **⚲ filter** button shows only one group or one country.
+
+### People
+
+Friends and family you want to visit. Enter their **city** (enough for the map) or their exact **address**. Tick **"I can stay with them"** and they get a green ring on the map. People can also be grouped.
+
+### Timeline
+
+Your trip day by day. **Only days you actually plan are shown**, so a long trip stays short and readable.
+
+1. Pick a date and tap **+ Day**.
+2. Add to that day:
+   - **+ Place:** something from your Places list.
+   - **+ Train:** from → to, times, and whether you need a **seat reservation**.
+   - **+ Stay:** where you sleep, and for how many nights.
+   - **+ Note:** anything else.
+3. Days in between collapse into one line, like *"4 days · 🛏️ staying with Anna"*.
+4. Things without a date yet go into **Unscheduled** at the top.
+5. **Drag** entries (⠿ handle) to reorder them or move them to another day.
+6. Tap **🗺️** on a day to see only that day on the map, numbered, with your train lines.
+
+### Settings ⚙️
+
+- **Sync with Google Drive** (see below)
+- **Backup:** export your whole trip as a file, or import one
+- **Interrail countries:** change which countries are highlighted
+
+---
+
+## 3. Your data
+
+- Everything you enter is saved **automatically, on your device**. You don't need a save button.
+- Nothing is sent to us. There is no "us": there's no server, just this website.
+- **Uninstalling the app or clearing the browser data deletes your trip** unless you've synced it or exported a backup.
+
+### Sync between phone and computer (Google Drive)
+
+In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. Your trip is then saved in a **hidden app folder in your own Google Drive**. Only Rail Planner can see that folder; it doesn't touch your other files. Do the same on your other devices and they all share one trip.
+
+- Changes sync automatically when you're online, and changes made offline are merged later. Nothing gets overwritten, even if you edited on two devices at once.
+- For security, Google only lets the app stay signed in for about an hour at a time. After that, a small **"Tap to sync"** button appears. One tap reconnects; you usually won't have to type anything.
+
+### Backup / move without Google
+
+⚙️ **Settings → Export backup** saves a file. On the other device, **Import backup** adds everything from that file.
+
+---
+
+## 4. Problems?
+
+| Problem | Fix |
+|---|---|
+| I don't see "Install app" | Use Chrome (Android/PC), Edge (PC) or Safari (iPhone). In-app browsers like Instagram's can't install apps |
+| A new version isn't showing | Close the app completely and open it again while online, twice if needed |
+| The map is grey offline | Only areas you looked at while online are saved for offline use. Browse your route once before leaving |
+| Search doesn't work | Search needs internet. Offline you can still tap **+ Place** and then the map |
+| Sync says "Tap to sync" | Normal after about an hour. Tap it once to reconnect |
+
+---
+
+## For developers
 
 ```sh
 cd app
@@ -21,6 +134,6 @@ npm install
 npm run dev
 ```
 
-Every push to `main` builds the app and publishes it to GitHub Pages (`.github/workflows/deploy.yml`).
+React + TypeScript + Vite, MapLibre GL, Yjs (local storage in IndexedDB, merged through Google Drive's app data folder). Every push to `main` builds and publishes to GitHub Pages (`.github/workflows/deploy.yml`).
 
-Map data © OpenStreetMap contributors, tiles by OpenFreeMap, borders from Natural Earth.
+Map data © OpenStreetMap contributors · tiles by OpenFreeMap · borders from Natural Earth · geocoding by Nominatim · exchange rates by open.er-api.com

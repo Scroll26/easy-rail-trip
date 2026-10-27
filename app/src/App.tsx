@@ -11,6 +11,7 @@ import MapToolbar from './components/MapToolbar'
 import { countryAt, useCountries } from './countries'
 import { useRates } from './rates'
 import { useBottomSheet } from './useBottomSheet'
+import { SyncChip } from './components/SyncSection'
 import { addDays } from './dates'
 import { describeItem, newItem, trainLeg, type Lookup } from './timeline'
 import { reverse, search, type GeoResult } from './geocode'
@@ -408,6 +409,7 @@ export default function App() {
       />
 
       <MapToolbar settings={settings} groups={groups} ratesNote={ratesNote} />
+      <SyncChip />
 
       {mapDay && !pick && (
         <div className="pick-banner day-banner">

@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
 import { persistence } from './store'
+import { startSync } from './sync/sync'
 
 registerSW({ immediate: true })
 
@@ -17,4 +18,5 @@ persistence.whenSynced.then(() => {
       <App />
     </StrictMode>,
   )
+  startSync()
 })

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadCountries } from '../countries'
+import SyncSection from './SyncSection'
 import { DEFAULT_INTERRAIL_COUNTRIES } from '../data/interrail'
 import { exportJson, importJson, updateSettings } from '../store'
 import type { Settings } from '../types'
@@ -47,11 +48,13 @@ export default function SettingsView({ settings }: { settings: Settings }) {
 
   return (
     <div className="settings">
+      <SyncSection />
+
       <section>
         <h3>Backup</h3>
         <p className="muted small">
-          Everything is stored on this device and works offline. Google Drive sync between devices comes next.
-          Until then, you can move data between devices with a backup file.
+          Everything is saved on this device and works offline. A backup file is a copy you can keep, or import on
+          another device without Google.
         </p>
         <div className="row">
           <button onClick={download}>⬇ Export backup</button>
