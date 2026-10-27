@@ -103,6 +103,10 @@ export function saveLine(line: TravelLine) {
   lines.set(line.id, { ...line, updatedAt: Date.now() })
 }
 
+export function getLine(id: string) {
+  return lines.get(id)
+}
+
 export function deleteLine(id: string) {
   lines.delete(id)
 }

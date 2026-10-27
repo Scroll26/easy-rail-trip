@@ -88,6 +88,9 @@ textarea { resize: vertical; }
 
 .tabs { display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--border); }
 .tabs button {
+  /* Equal widths, whatever the label */
+  flex: 1 1 0;
+  min-width: 0;
   border: none;
   background: none;
   border-radius: 0;
@@ -103,8 +106,7 @@ textarea { resize: vertical; }
 
 /* Desktop / laptop: sidebar */
 @media (min-width: 800px) {
-  .app { --panel-w: 390px; }
-  .app.wide { --panel-w: 470px; }
+  .app { --panel-w: 440px; }
   .panel { top: 0; bottom: 0; left: 0; width: var(--panel-w); }
   .app > .map { left: var(--panel-w); }
   .map-toolbar { left: calc(var(--panel-w) + 12px) !important; }
@@ -566,21 +568,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 .check.disabled { opacity: 0.5; }
 
 /* ---------- Simple view + travel lines ---------- */
-.simple-toggle {
-  position: absolute;
-  z-index: 4;
-  right: 56px;
-  bottom: 30px;
-  border-radius: 999px;
-  background: var(--bg);
-  box-shadow: var(--shadow);
-  font-size: 13px;
-  font-weight: 600;
-}
-.simple-toggle.active { background: #0f172a; color: #fff; border-color: #0f172a; }
-@media (max-width: 799px) {
-  .simple-toggle { bottom: 120px; right: 10px; }
-}
+.toolbar-btn.view-trip { border-radius: 10px; font-weight: 600; }
+.toolbar-btn.view-trip.active { background: #0f172a; color: #fff; border-color: #0f172a; }
 .simple-note { margin: 0; font-size: 12px; background: var(--bg-2); border-radius: 8px; padding: 6px 8px; }
 .view-switch { display: flex; margin-bottom: 10px; }
 .view-switch button { flex: 1; justify-content: center; }
@@ -649,7 +638,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 .day-amount { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 .expense-list { margin: 2px 0 8px 12px; }
 .expense-eur { font-variant-numeric: tabular-nums; margin-left: auto; padding-left: 6px; }
-.budget-settings { padding-top: 8px; border-top: 1px solid var(--border); }
 @media (max-width: 799px) {
   .tabs button { font-size: 13px; padding: 10px 2px; }
 }
+
+.route-info { background: var(--bg-2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.route-legs { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+
+.budget-hero { position: relative; }
+.hero-gear { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; }
+.hero-settings { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.hero-settings input { background: var(--bg); }

@@ -51,7 +51,7 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Timeline
 |---|---|
 | 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
 | 🗺️ **Map ▾** | **🎫 Interrail:** Highlight / Dim others / Off: which countries your pass covers (teal) · **🛤️ Railway lines** (on by default): switch each kind on or off (high-speed red, main lines orange, branch lines yellow, narrow gauge brown, other grey) and the station dots (tap one for its name) · **⚙️ Other:** map text (All / Countries only / None), 🛣️ streets (off by default), 💱 currencies (colours each currency zone and shows what 1 € is worth there), 🎨 pins in group colours |
-| ✨ **Simple view** (bottom right) | One tap for a clean map: only your pins with names, country names and travel lines. Tap again for everything else |
+| 🧳 **View trip** | One tap for a clean map: only your pins with names, country names and travel lines. Tap again for everything else |
 | **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
 | ◎ | Show where you are right now |
 
@@ -77,7 +77,7 @@ Draw where you'll travel, in the **Places** tab under **〰️ Travel lines**:
 3. Tap the destination.
 
 There are two kinds, in different colours:
-- **🚆 Train connection** (solid blue): a concrete train, station to station. Drawn automatically when you connect two stations. Trains from your timeline look the same.
+- **🚆 Train connection** (solid blue): a concrete train, station to station. It's drawn **along the actual tracks**, and the editor shows the legs and operators (e.g. "Wien Meidling → Salzburg Hbf · ÖBB"). Chosen automatically when you connect two stations. Trains from your timeline are blue too.
 - **🧭 General plan** (dashed purple): roughly where you want to go next, city to city.
 
 Tap a line on the map, or ✏️ in the list, to change its kind, swap its direction or add notes. Lines attached to pins follow them when you move the pins.
@@ -116,11 +116,11 @@ Times count from the departure time you chose, so they include waiting for the f
 
 Set a **daily goal** (for example 50 €) and log what you spend; the app tells you whether you're **under or over budget** so far.
 
-- **Add an expense:** type the amount, pick the currency (CZK, PLN, HUF, CHF, …) and a category, then tap **Add**. It's converted to euros with that day's exchange rate, which is kept with the expense. Offline it's converted later.
-- **The headline** shows how much you're under or over in total since the budget started (days × goal − spent), plus your average per day and today's spending.
+- **Add an expense:** type the amount, pick the currency (CZK, PLN, HUF, CHF, …), optionally tap a category (tap it again to remove it), then tap **Add**. It's converted to euros with that day's exchange rate, which is kept with the expense. Offline it's converted later.
+- **The headline** shows how much you're under or over in total since the budget started (days × goal − spent), your daily spending so far, your average per day, the **total including one-off costs**, and today's spending. Tap ⚙️ in that card to set the daily goal and the start date.
 - **Per day:** one bar per day with the goal marked; days over the goal turn red with ⚠. Tap a day to see and edit its expenses.
 - **One-off costs** (the pass, prepaid hostels…): tick *One-off cost* so they don't spoil your daily numbers. They're listed and totalled separately.
-- The budget starts on your first timeline day, or set a start date in *Budget settings*.
+- The budget starts on your first timeline day unless you set a start date (⚙️ in the headline card).
 
 ### Settings ⚙️
 

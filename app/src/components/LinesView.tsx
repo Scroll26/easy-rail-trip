@@ -1,4 +1,4 @@
-import { LINE_KINDS, lineTitle } from '../lines'
+import { currentRoute, LINE_KINDS, lineTitle } from '../lines'
 import { deleteLine, listOrder, saveLine } from '../store'
 import { between, type Lookup } from '../timeline'
 import type { TravelLine } from '../types'
@@ -73,13 +73,17 @@ export default function LinesView({ lines, lookup, highlightId, onAdd, onShow, o
 export function LineEditor({
   line,
   lookup,
+  routeFailed,
   onClose,
 }: {
   line: TravelLine
   lookup: Lookup
+  /** The last route lookup didn't work (offline / service busy) */
+  routeFailed: boolean
   onClose: () => void
 }) {
   const set = (patch: Partial<TravelLine>) => saveLine({ ...line, ...patch })
+  const route = currentRoute(line, lookup)
   return (
     <div className="editor">
       <div className="editor-head">
@@ -103,6 +107,33 @@ export function LineEditor({
         </div>
         <span className="muted small">{LINE_KINDS[line.kind].hint}</span>
       </div>
+      {line.kind === 'train' && (
+        <div className="route-info">
+          {route?.path ? (
+            <>
+              <span className="small">
+                Drawn along the tracks{route.legs.length > 1 ? `, ${route.legs.length - 1} change${route.legs.length > 2 ? 's' : ''}` : ', direct'}:
+              </span>
+              <ol className="route-legs">
+                {route.legs.map((l, i) => (
+                  <li key={i} className="small">
+                    {l.from} → {l.to}
+                    {l.agency && <span className="muted"> · {l.agency}</span>}
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : route ? (
+            <span className="small muted">No train route found between these places, so it's drawn as a straight line.</span>
+          ) : routeFailed ? (
+            <span className="small muted">
+              Couldn't look up the route right now (offline?). It's drawn straight and tried again next time.
+            </span>
+          ) : (
+            <span className="small muted">Looking up the route along the tracks…</span>
+          )}
+        </div>
+      )}
       <div className="row">
         <button onClick={() => set({ from: line.to, to: line.from })}>⇄ Swap direction</button>
       </div>

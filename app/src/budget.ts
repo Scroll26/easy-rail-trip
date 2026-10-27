@@ -2,6 +2,12 @@ import { addDays, daysBetween } from './dates'
 import type { Rates } from './rates'
 import type { Expense, ExpenseCategory } from './types'
 
+/** Shown for expenses without a category */
+export const NO_CATEGORY = { label: 'Expense', icon: '💶' }
+
+export const categoryOf = (e: { category: ExpenseCategory | null }) =>
+  (e.category && EXPENSE_CATEGORIES[e.category]) || NO_CATEGORY
+
 export const EXPENSE_CATEGORIES: Record<ExpenseCategory, { label: string; icon: string }> = {
   food: { label: 'Food & drink', icon: '🍽️' },
   groceries: { label: 'Groceries', icon: '🛒' },

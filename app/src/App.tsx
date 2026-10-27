@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import MapView, { type PickHit } from './components/MapView'
 import LinesView, { LineEditor } from './components/LinesView'
-import { drawnLines, resolveEndpoint } from './lines'
+import { currentRoute, drawnLines, resolveEndpoint, routeKey } from './lines'
+import { railRoute } from './rail/route'
 import PlaceEditor from './components/PlaceEditor'
 import PersonEditor from './components/PersonEditor'
 import SettingsView from './components/SettingsView'
@@ -30,7 +31,7 @@ import {
   saveItem,
   savePlace,
   saveLine,
-  updateSettings,
+  getLine,
   useDays,
   useExpenses,
   useLines,
@@ -155,6 +156,38 @@ export default function App() {
   }, [mapDay, timeline, lookup])
 
   const travel = useMemo(() => drawnLines(lines, lookup), [lines, lookup])
+
+  // Train connections follow the tracks: look up each route once (and again if an end moves).
+  // The result is stored with the line, so other devices and offline use get it for free.
+  const routeAttempts = useRef(new Set<string>())
+  const [routing, setRouting] = useState<Set<string>>(new Set())
+  const [routeFailed, setRouteFailed] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    for (const line of lines) {
+      if (line.kind !== 'train' || currentRoute(line, lookup)) continue
+      const key = routeKey(line, lookup)
+      const attempt = `${line.id}|${key}`
+      if (routeAttempts.current.has(attempt)) continue
+      routeAttempts.current.add(attempt)
+      setRouting((s) => new Set(s).add(line.id))
+      railRoute(resolveEndpoint(line.from, lookup), resolveEndpoint(line.to, lookup))
+        .then((r) => {
+          const fresh = getLine(line.id)
+          if (fresh) saveLine({ ...fresh, route: { key, path: r?.path ?? null, legs: r?.legs ?? [] } })
+        })
+        .catch(() => {
+          // Offline or the service is busy: try again next time the app opens
+          setRouteFailed((s) => new Set(s).add(line.id))
+        })
+        .finally(() =>
+          setRouting((s) => {
+            const n = new Set(s)
+            n.delete(line.id)
+            return n
+          }),
+        )
+    }
+  }, [lines, lookup])
 
   // Simple view: only pins + names, country names and travel lines
   const mapSettings: Settings = useMemo(
@@ -469,7 +502,15 @@ export default function App() {
   const selectedPerson = selection?.kind === 'person' ? people.find((p) => p.id === selection.id) : undefined
 
   let body: React.ReactNode
-  if (editedLine) body = <LineEditor line={editedLine} lookup={lookup} onClose={() => setEditingLine(null)} />
+  if (editedLine)
+    body = (
+      <LineEditor
+        line={editedLine}
+        lookup={lookup}
+        routeFailed={routeFailed.has(editedLine.id) && !routing.has(editedLine.id)}
+        onClose={() => setEditingLine(null)}
+      />
+    )
   else if (editedItem)
     body = (
       <ItemEditor
@@ -637,7 +678,7 @@ export default function App() {
     )
 
   return (
-    <div className={'app' + (tab === 'timeline' || editedItem ? ' wide' : '')}>
+    <div className="app">
       <MapView
         places={places}
         people={people}
@@ -664,13 +705,6 @@ export default function App() {
       />
 
       <MapToolbar settings={settings} groups={groups} ratesNote={ratesNote} />
-      <button
-        className={'simple-toggle' + (settings.simpleView ? ' active' : '')}
-        onClick={() => updateSettings({ simpleView: !settings.simpleView })}
-        title="Only pins, country names and travel lines"
-      >
-        {settings.simpleView ? '✨ Simple view: on' : '✨ Simple view'}
-      </button>
       <SyncChip />
 
       {mapDay && !pick && (

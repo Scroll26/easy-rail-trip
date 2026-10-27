@@ -27,18 +27,30 @@ export interface DrawnLine {
   coords: [number, number][]
 }
 
+/** Identifies the ends a route was looked up for; a moved pin makes it stale */
+export function routeKey(line: TravelLine, lookup: Lookup) {
+  const a = resolveEndpoint(line.from, lookup)
+  const b = resolveEndpoint(line.to, lookup)
+  return [a.lat, a.lng, b.lat, b.lng].map((n) => n.toFixed(4)).join(',')
+}
+
+/** The stored rail route of a train connection, if it's still for the current ends */
+export function currentRoute(line: TravelLine, lookup: Lookup) {
+  return line.kind === 'train' && line.route?.key === routeKey(line, lookup) ? line.route : null
+}
+
 export function drawnLines(lines: TravelLine[], lookup: Lookup): DrawnLine[] {
   return lines.map((l) => {
     const a = resolveEndpoint(l.from, lookup)
     const b = resolveEndpoint(l.to, lookup)
-    return {
-      id: l.id,
-      kind: l.kind,
-      title: `${a.name} → ${b.name}`,
-      coords: [
-        [a.lng, a.lat],
-        [b.lng, b.lat],
-      ],
-    }
+    const path = currentRoute(l, lookup)?.path
+    // Train connections follow the tracks; general plans (and unrouted lines) go straight
+    const coords: [number, number][] = path?.length
+      ? [[a.lng, a.lat], ...path, [b.lng, b.lat]]
+      : [
+          [a.lng, a.lat],
+          [b.lng, b.lat],
+        ]
+    return { id: l.id, kind: l.kind, title: `${a.name} → ${b.name}`, coords }
   })
 }

@@ -75,6 +75,13 @@ export interface TravelLine {
   to: Endpoint
   notes: string
   order?: number
+  /** Train connections: the route along the tracks, for the ends it was looked up for */
+  route?: {
+    key: string
+    /** [lng, lat] points; null = no train route found */
+    path: [number, number][] | null
+    legs: { from: string; to: string; agency: string; mode: string }[]
+  } | null
   createdAt: number
   updatedAt: number
 }
@@ -90,7 +97,8 @@ export interface Expense {
   currency: string
   /** 1 EUR = rate × currency at the time of entry; null if unknown then (offline) */
   rate: number | null
-  category: ExpenseCategory
+  /** Optional tag; null = no category */
+  category: ExpenseCategory | null
   note: string
   /** Big one-off cost (pass, prepaid hostel…): kept out of the daily budget */
   oneOff: boolean

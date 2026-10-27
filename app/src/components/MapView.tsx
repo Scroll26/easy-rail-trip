@@ -55,7 +55,7 @@ const travelGeoJson = (lines: DrawnLine[]): GeoJSON.FeatureCollection => ({
   features: lines.flatMap((l): GeoJSON.Feature[] => [
     { type: 'Feature', properties: { id: l.id, kind: l.kind, title: l.title }, geometry: { type: 'LineString', coordinates: l.coords } },
     // End dots, so lines to a free point don't just stop in the void
-    ...l.coords.map((c): GeoJSON.Feature => ({ type: 'Feature', properties: { kind: l.kind }, geometry: { type: 'Point', coordinates: c } })),
+    ...[l.coords[0], l.coords[l.coords.length - 1]].map((c): GeoJSON.Feature => ({ type: 'Feature', properties: { kind: l.kind }, geometry: { type: 'Point', coordinates: c } })),
   ]),
 })
 

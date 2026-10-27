@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EXPENSE_CATEGORIES, formatEur, formatMoney, summarize, toEur } from '../budget'
+import { categoryOf, EXPENSE_CATEGORIES, formatEur, formatMoney, summarize, toEur } from '../budget'
 import { CURRENCY_STYLE } from '../data/currencies'
 import { daysBetween, formatDay, today as todayDate } from '../dates'
 import type { Rates } from '../rates'
@@ -33,6 +33,7 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
     [expenses, rates, settings.budgetDaily, start, today],
   )
   const [editing, setEditing] = useState<Expense | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
   const [openDay, setOpenDay] = useState<string | null>(null)
 
   const byDay = useMemo(() => {
@@ -56,6 +57,44 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
           <span className="muted small">
             in {daysBetween(today, start)} days · goal {formatEur(s.goal)} per day
           </span>
+          <button
+            type="button"
+            className="icon-btn hero-gear"
+            title="Budget settings"
+            aria-expanded={showSettings}
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            ⚙️
+          </button>
+          {showSettings && (
+            <div className="hero-settings">
+              <div className="row two">
+                <label className="field">
+                  <span>Daily goal (€)</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={1}
+                    value={settings.budgetDaily}
+                    onChange={(e) => updateSettings({ budgetDaily: Math.max(1, Number(e.target.value) || 1) })}
+                  />
+                </label>
+                <label className="field">
+                  <span>Budget starts</span>
+                  <input
+                    type="date"
+                    value={settings.budgetStart ?? ''}
+                    onChange={(e) => updateSettings({ budgetStart: e.target.value || null })}
+                  />
+                </label>
+              </div>
+              <p className="muted small">
+                {settings.budgetStart
+                  ? 'Clear the date to start with your first timeline day again.'
+                  : `No date set, so it starts with ${firstDay ? 'your first timeline day' : 'your first expense'} (${formatDay(start)}).`}
+              </p>
+            </div>
+          )}
         </section>
       ) : (
         <section className={'budget-hero ' + (under ? 'good' : 'bad')}>
@@ -69,12 +108,16 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
           </span>
           <div className="stat-row">
             <div>
-              <span className="muted small">Spent</span>
+              <span className="muted small">Spent (daily)</span>
               <b>{formatEur(s.spent)}</b>
             </div>
             <div>
               <span className="muted small">Average</span>
               <b>{formatEur(s.average)}/day</b>
+            </div>
+            <div>
+              <span className="muted small">Total incl. one-offs</span>
+              <b>{formatEur(s.spent + s.oneOffTotal)}</b>
             </div>
             <div>
               <span className="muted small">Today</span>
@@ -96,6 +139,44 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
               style={{ width: `${Math.min(100, (s.spentToday / s.goal) * 100)}%` }}
             />
           </div>
+          <button
+            type="button"
+            className="icon-btn hero-gear"
+            title="Budget settings"
+            aria-expanded={showSettings}
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            ⚙️
+          </button>
+          {showSettings && (
+            <div className="hero-settings">
+              <div className="row two">
+                <label className="field">
+                  <span>Daily goal (€)</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={1}
+                    value={settings.budgetDaily}
+                    onChange={(e) => updateSettings({ budgetDaily: Math.max(1, Number(e.target.value) || 1) })}
+                  />
+                </label>
+                <label className="field">
+                  <span>Budget starts</span>
+                  <input
+                    type="date"
+                    value={settings.budgetStart ?? ''}
+                    onChange={(e) => updateSettings({ budgetStart: e.target.value || null })}
+                  />
+                </label>
+              </div>
+              <p className="muted small">
+                {settings.budgetStart
+                  ? 'Clear the date to start with your first timeline day again.'
+                  : `No date set, so it starts with ${firstDay ? 'your first timeline day' : 'your first expense'} (${formatDay(start)}).`}
+              </p>
+            </div>
+          )}
         </section>
       )}
       {s.unconverted > 0 && (
@@ -162,42 +243,13 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
         )}
       </section>
 
-      {/* Settings */}
-      <section className="budget-settings">
-        <h3>Budget settings</h3>
-        <div className="row two">
-          <label className="field">
-            <span>Daily goal (€)</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={1}
-              value={settings.budgetDaily}
-              onChange={(e) => updateSettings({ budgetDaily: Math.max(1, Number(e.target.value) || 1) })}
-            />
-          </label>
-          <label className="field">
-            <span>Budget starts</span>
-            <input
-              type="date"
-              value={settings.budgetStart ?? ''}
-              onChange={(e) => updateSettings({ budgetStart: e.target.value || null })}
-            />
-          </label>
-        </div>
-        <p className="muted small">
-          {settings.budgetStart
-            ? 'Clear the date to start with your first timeline day again.'
-            : `No date set, so it starts with ${firstDay ? 'your first timeline day' : 'your first expense'} (${formatDay(start)}).`}
-        </p>
-      </section>
     </div>
   )
 }
 
 function ExpenseRow({ e, rates, onEdit, showDate }: { e: Expense; rates: Rates | null; onEdit: () => void; showDate?: boolean }) {
   const eur = toEur(e, rates)
-  const cat = EXPENSE_CATEGORIES[e.category]
+  const cat = categoryOf(e)
   return (
     <li>
       <button className="item" onClick={onEdit}>
@@ -206,7 +258,9 @@ function ExpenseRow({ e, rates, onEdit, showDate }: { e: Expense; rates: Rates |
           <strong className="ellipsis">{e.note || cat.label}</strong>
           <span className="muted small">
             {showDate ? formatDay(e.date) + ' · ' : ''}
-            {e.currency === 'EUR' ? cat.label : `${formatMoney(e.amount, e.currency)} · ${cat.label}`}
+            {[e.currency === 'EUR' ? '' : formatMoney(e.amount, e.currency), e.category ? cat.label : '']
+              .filter(Boolean)
+              .join(' · ') || (e.note ? '' : formatDay(e.date))}
           </span>
         </span>
         <b className="expense-eur">{eur == null ? '? €' : formatEur(eur)}</b>
@@ -221,7 +275,7 @@ function ExpenseRow({ e, rates, onEdit, showDate }: { e: Expense; rates: Rates |
 function ExpenseForm({ editing, rates, onDone }: { editing: Expense | null; rates: Rates | null; onDone: () => void }) {
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '')
   const [currency, setCurrency] = useState(editing?.currency ?? lastCurrency())
-  const [category, setCategory] = useState<ExpenseCategory>(editing?.category ?? 'food')
+  const [category, setCategory] = useState<ExpenseCategory | null>(editing?.category ?? null)
   const [note, setNote] = useState(editing?.note ?? '')
   const [date, setDate] = useState(editing?.date ?? todayDate())
   const [oneOff, setOneOff] = useState(editing?.oneOff ?? false)
@@ -260,6 +314,7 @@ function ExpenseForm({ editing, rates, onDone }: { editing: Expense | null; rate
     }
     setAmount('')
     setNote('')
+    setCategory(null)
     setOneOff(false)
     onDone()
   }
@@ -295,7 +350,8 @@ function ExpenseForm({ editing, rates, onDone }: { editing: Expense | null; rate
             key={c}
             type="button"
             className={'chip' + (category === c ? ' active' : '')}
-            onClick={() => setCategory(c)}
+            // Tap again to remove the tag
+            onClick={() => setCategory(category === c ? null : c)}
             title={EXPENSE_CATEGORIES[c].label}
           >
             {EXPENSE_CATEGORIES[c].icon} {EXPENSE_CATEGORIES[c].label}

@@ -137,6 +137,14 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
 
   return (
     <div className="map-toolbar" ref={ref}>
+      <button
+        className={'toolbar-btn view-trip' + (settings.simpleView ? ' active' : '')}
+        onClick={() => updateSettings({ simpleView: !settings.simpleView })}
+        title="Clean map with only your pins, country names and travel lines"
+        aria-pressed={settings.simpleView}
+      >
+        🧳 View trip
+      </button>
       {layer('place')}
       {layer('person')}
       <div className="split">
