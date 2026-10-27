@@ -1,4 +1,5 @@
-import { currentRoute, LINE_KINDS, lineTitle } from '../lines'
+import { currentRoute, legSummary, LINE_KINDS, lineTitle } from '../lines'
+import RouteLegs from './RouteLegs'
 import { deleteLine, listOrder, saveLine } from '../store'
 import { between, type Lookup } from '../timeline'
 import type { TravelLine } from '../types'
@@ -51,6 +52,10 @@ export default function LinesView({ lines, lookup, highlightId, onAdd, onShow, o
                 <strong className="ellipsis">{lineTitle(l, lookup)}</strong>
                 <span className="muted small ellipsis">
                   {LINE_KINDS[l.kind].label}
+                  {(() => {
+                    const r = currentRoute(l, lookup)
+                    return r?.legs.length ? ` · ${legSummary(r.legs).icon} Interrail` : ''
+                  })()}
                   {l.notes ? ' · ' + l.notes : ''}
                 </span>
               </span>
@@ -110,19 +115,7 @@ export function LineEditor({
       {line.kind === 'train' && (
         <div className="route-info">
           {route?.path ? (
-            <>
-              <span className="small">
-                Drawn along the tracks{route.legs.length > 1 ? `, ${route.legs.length - 1} change${route.legs.length > 2 ? 's' : ''}` : ', direct'}:
-              </span>
-              <ol className="route-legs">
-                {route.legs.map((l, i) => (
-                  <li key={i} className="small">
-                    {l.from} → {l.to}
-                    {l.agency && <span className="muted"> · {l.agency}</span>}
-                  </li>
-                ))}
-              </ol>
-            </>
+            <RouteLegs legs={route.legs} />
           ) : route ? (
             <span className="small muted">No train route found between these places, so it's drawn as a straight line.</span>
           ) : routeFailed ? (

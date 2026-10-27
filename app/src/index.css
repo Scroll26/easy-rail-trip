@@ -649,3 +649,45 @@ button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 .hero-gear { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; }
 .hero-settings { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .hero-settings input { background: var(--bg); }
+
+.route-legs-view { display: flex; flex-direction: column; gap: 6px; }
+.route-legs-view p { margin: 0; }
+.route-legs > li { margin-bottom: 6px; }
+.leg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.coverage-summary { font-weight: 600; font-size: 13px; }
+.coverage-summary.good, .cov-badge.good { color: #15803d; }
+.coverage-summary.warn, .cov-badge.warn { color: #b45309; }
+.coverage-summary.bad, .cov-badge.bad { color: #dc2626; }
+.coverage-summary.neutral, .cov-badge.neutral { color: var(--muted); }
+.cov-badge { font-size: 11px; font-weight: 700; border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; white-space: nowrap; }
+.popup-legs { max-height: 220px; overflow-y: auto; padding-left: 18px; margin: 4px 0; font-size: 13px; }
+.add-popup .popup-legs span { text-transform: none; }
+details summary { cursor: pointer; color: var(--accent); }
+@media (prefers-color-scheme: dark) {
+  .coverage-summary.good, .cov-badge.good { color: #4ade80; }
+  .coverage-summary.warn, .cov-badge.warn { color: #fbbf24; }
+  .coverage-summary.bad, .cov-badge.bad { color: #f87171; }
+}
+
+.ferry-swatch { flex: none; width: 22px; height: 0; margin-top: 9px; border-top: 3px dashed; }
+.ferry-swatch.discount { border-top-width: 2px; border-top-style: dotted; }
+.ferry-benefit { margin: 4px 0; line-height: 1.4; }
+.add-popup .cov-badge { align-self: flex-start; }
+
+/* Direct-train results in focus: pins step back */
+.map.faded .marker-btn { opacity: 0.35; filter: grayscale(1); }
+.map.faded .marker-btn.is-selected { opacity: 1; filter: none; }
+.train-info { display: block; margin-top: 2px; }
+
+/* ---------- Data & storage ---------- */
+.danger-zone { margin-top: 14px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); border-radius: 12px; display: flex; flex-direction: column; gap: 8px; }
+button.danger.solid { background: var(--danger); color: #fff; border-color: var(--danger); font-weight: 600; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(15, 23, 42, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal { background: var(--bg); color: var(--fg); border-radius: 16px; padding: 18px; max-width: 460px; width: 100%; box-shadow: var(--shadow); }
+.modal h3 { margin: 0 0 8px; }
+.modal p { line-height: 1.5; margin: 0 0 10px; }
+.recover { padding: 8px 10px; border-radius: 10px; font-size: 14px; }
+.recover.yes { background: color-mix(in srgb, #16a34a 14%, transparent); }
+.recover.no { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.modal-actions { flex-wrap: wrap; }
+.modal-actions .spacer { flex: 1; }

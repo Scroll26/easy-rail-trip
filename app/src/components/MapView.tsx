@@ -8,7 +8,9 @@ import { COUNTRY_CURRENCY, CURRENCY_STYLE, NO_CURRENCY_LABEL } from '../data/cur
 import { formatRate, type Rates } from '../rates'
 import { findStation, formatMinutes, type DirectResult } from '../rail/transitous'
 import { RAIL_TYPE, RAIL_TYPES } from '../data/railTypes'
-import { LINE_KINDS, type DrawnLine } from '../lines'
+import { legSummary, LINE_KINDS, timeOf, type DrawnLine } from '../lines'
+import { coverage, COVERAGE_LABEL } from '../data/interrailOperators'
+import { FERRIES, FERRY_INFO_URL, FERRY_STYLE } from '../data/ferries'
 import { NO_GROUP, type Group, type Person, type Place, type PlaceCategory, type Selection, type Settings } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -37,6 +39,8 @@ interface Props {
   reachHighlight: string | null
   /** Show direct trains from a station (exact spot) or a city (find its main station) */
   onTrainsFrom: (name: string, lat: number, lng: number, isStation: boolean) => void
+  /** A direct-train dot was tapped */
+  onReachSelect: (stopId: string) => void
   travel: DrawnLine[]
   lineHighlight: string | null
   onEditLine: (id: string) => void
@@ -58,6 +62,15 @@ const travelGeoJson = (lines: DrawnLine[]): GeoJSON.FeatureCollection => ({
     ...[l.coords[0], l.coords[l.coords.length - 1]].map((c): GeoJSON.Feature => ({ type: 'Feature', properties: { kind: l.kind }, geometry: { type: 'Point', coordinates: c } })),
   ]),
 })
+
+const ferriesGeoJson: GeoJSON.FeatureCollection = {
+  type: 'FeatureCollection',
+  features: FERRIES.map((f, i) => ({
+    type: 'Feature',
+    properties: { i, included: f.included },
+    geometry: { type: 'LineString', coordinates: f.path.map(([lat, lng]) => [lng, lat]) },
+  })),
+}
 
 const IS_LINE: maplibregl.ExpressionSpecification = ['==', ['geometry-type'], 'LineString']
 
@@ -314,6 +327,7 @@ export default function MapView({
   reach,
   reachHighlight,
   onTrainsFrom,
+  onReachSelect,
   travel,
   lineHighlight,
   onEditLine,
@@ -324,8 +338,8 @@ export default function MapView({
   const currencyRef = useRef(currencyData)
   currencyRef.current = currencyData
   // Latest values for map event handlers registered once
-  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine })
-  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine }
+  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect })
+  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect }
   const travelRef = useRef(travel)
   travelRef.current = travel
   const reachRef = useRef(reach)
@@ -518,6 +532,25 @@ export default function MapView({
       applyLabels(map, latest.current.settings.mapLabels)
       applyRailwaysAndStreets(map, latest.current.settings)
 
+      // Ferries with an Interrail benefit: included (teal, long dashes) and discount (grey, short dashes)
+      map.addSource('ferries', { type: 'geojson', data: ferriesGeoJson })
+      map.addLayer({
+        id: 'ferry-discount',
+        type: 'line',
+        source: 'ferries',
+        filter: ['!', ['get', 'included']],
+        layout: { visibility: latest.current.settings.showFerriesDiscount ? 'visible' : 'none' },
+        paint: { 'line-color': FERRY_STYLE.discount.color, 'line-width': 2.2, 'line-dasharray': [1, 1.6] },
+      })
+      map.addLayer({
+        id: 'ferry-included',
+        type: 'line',
+        source: 'ferries',
+        filter: ['get', 'included'],
+        layout: { visibility: latest.current.settings.showFerriesIncluded ? 'visible' : 'none' },
+        paint: { 'line-color': FERRY_STYLE.included.color, 'line-width': 3.2, 'line-dasharray': [2.5, 1.2] },
+      })
+
       // Travel lines: train connections solid blue, general plans dashed purple
       const travelVisibility = latest.current.settings.showTravelLines ? 'visible' : 'none'
       map.addSource('travel', { type: 'geojson', data: travelGeoJson(travelRef.current) })
@@ -606,6 +639,23 @@ export default function MapView({
         paint: { 'line-color': LINE_KINDS.train.color, 'line-width': 4 },
       })
 
+      // Direct trains: a light veil over everything else so the destinations stand out
+      map.addSource('veil', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'Polygon', coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]] },
+        },
+      })
+      map.addLayer({
+        id: 'reach-veil',
+        type: 'fill',
+        source: 'veil',
+        layout: { visibility: 'none' },
+        paint: { 'fill-color': '#f1f5f9', 'fill-opacity': 0.72 },
+      })
+
       // Direct trains: one dot per reachable station, coloured by travel time
       map.addSource('reach', { type: 'geojson', data: reachGeoJson(reachRef.current) })
       map.addSource('reach-origin', { type: 'geojson', data: originGeoJson(reachRef.current) })
@@ -642,7 +692,7 @@ export default function MapView({
         paint: { 'circle-radius': 9, 'circle-color': '#0f172a', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 },
       })
 
-      for (const id of ['reach-dots', ...ORM_STATION_LAYERS]) {
+      for (const id of ['reach-dots', 'ferry-included', 'ferry-discount', 'travel-train', 'travel-plan', ...ORM_STATION_LAYERS]) {
         map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'))
         map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''))
       }
@@ -707,6 +757,7 @@ export default function MapView({
       // Most specific first: a direct-train result, a railway station, then any map label
       const reachHit = hit(['reach-dots'])
       if (reachHit) {
+        latest.current.onReachSelect(String(reachHit.properties.stopId))
         showReachPopup(
           reachHit.properties as { name: string; minutes: number; stopId: string },
           (reachHit.geometry as GeoJSON.Point).coordinates as [number, number],
@@ -726,9 +777,40 @@ export default function MapView({
         showLinePopup(lineHit.properties as { id: string; kind: 'train' | 'plan'; title: string }, e.lngLat)
         return
       }
+      const ferryHit = hit(['ferry-included', 'ferry-discount'])
+      if (ferryHit) {
+        showFerryPopup(Number(ferryHit.properties.i), e.lngLat)
+        return
+      }
       const labelHit = hit(CLICKABLE_LAYERS)
       if (labelHit) showAddPopup(labelHit, e.lngLat)
     })
+
+    function showFerryPopup(i: number, at: maplibregl.LngLat) {
+      const f = FERRIES[i]
+      if (!f) return
+      const el = document.createElement('div')
+      el.className = 'add-popup'
+      const title = document.createElement('strong')
+      title.textContent = `⛴️ ${f.name}`
+      const op = document.createElement('span')
+      op.className = 'muted small no-caps'
+      op.textContent = f.operator
+      const badge = document.createElement('span')
+      badge.className = 'cov-badge no-caps ' + (f.included ? 'good' : 'warn')
+      badge.textContent = f.included ? '✓ Included in the pass' : '% Discount with the pass'
+      const text = document.createElement('p')
+      text.className = 'small no-caps ferry-benefit'
+      text.textContent = f.benefit
+      const link = document.createElement('a')
+      link.href = FERRY_INFO_URL
+      link.target = '_blank'
+      link.rel = 'noreferrer'
+      link.className = 'small'
+      link.textContent = 'Details on interrail.com ↗'
+      el.append(title, op, badge, text, link)
+      new maplibregl.Popup({ className: 'map-popup', offset: 6, maxWidth: '280px' }).setLngLat(at).setDOMContent(el).addTo(map)
+    }
 
     function showLinePopup(p: { id: string; kind: 'train' | 'plan'; title: string }, at: maplibregl.LngLat) {
       const el = document.createElement('div')
@@ -741,8 +823,40 @@ export default function MapView({
       kind.textContent = `${LINE_KINDS[p.kind].icon} ${LINE_KINDS[p.kind].label}`
       const edit = document.createElement('button')
       edit.textContent = '✏️ Edit line'
-      el.append(title, kind, edit)
-      const popup = new maplibregl.Popup({ className: 'map-popup', offset: 6, maxWidth: '260px' })
+      el.append(title, kind)
+      // Train connection: list its trains and stops
+      const legs = travelRef.current.find((l) => l.id === p.id)?.legs
+      if (p.kind === 'train' && legs?.length) {
+        const sum = legSummary(legs)
+        const s = document.createElement('div')
+        s.className = 'coverage-summary small ' + sum.tone
+        s.textContent = `${sum.icon} ${sum.text}`
+        const list = document.createElement('ol')
+        list.className = 'route-legs popup-legs'
+        for (const l of legs) {
+          const c = COVERAGE_LABEL[coverage(l.agency, l.mode)]
+          const li = document.createElement('li')
+          const head = document.createElement('b')
+          head.textContent = `${l.mode === 'FERRY' ? '⛴️' : '🚆'} ${l.name || (l.mode === 'FERRY' ? 'Ferry' : 'Train')} `
+          const badge = document.createElement('span')
+          badge.className = 'cov-badge ' + c.tone
+          badge.textContent = `${c.icon} ${c.text}`
+          const when = document.createElement('div')
+          when.className = 'small'
+          when.textContent = `${timeOf(l.departure)} ${l.from} → ${timeOf(l.arrival)} ${l.to}`
+          li.append(head, badge, when)
+          if (l.stops?.length) {
+            const stops = document.createElement('div')
+            stops.className = 'muted small'
+            stops.textContent = 'via ' + l.stops.join(', ')
+            li.append(stops)
+          }
+          list.append(li)
+        }
+        el.append(s, list)
+      }
+      el.append(edit)
+      const popup = new maplibregl.Popup({ className: 'map-popup', offset: 6, maxWidth: '320px' })
         .setLngLat(at)
         .setDOMContent(el)
         .addTo(map)
@@ -869,6 +983,13 @@ export default function MapView({
     if (map?.getLayer('reach-highlight')) map.setFilter('reach-highlight', ['==', ['get', 'stopId'], reachHighlight ?? ''])
   }, [reachHighlight, mapRef])
 
+  // Fade the rest of the map while direct-train results are shown
+  const faded = !!reach && settings.reachFocus && !settings.simpleView
+  useEffect(() => {
+    const map = mapRef.current
+    if (map?.getLayer('reach-veil')) map.setLayoutProperty('reach-veil', 'visibility', faded ? 'visible' : 'none')
+  }, [faded, mapRef])
+
   useEffect(() => {
     const source = mapRef.current?.getSource('travel') as maplibregl.GeoJSONSource | undefined
     source?.setData(travelGeoJson(travel))
@@ -878,6 +999,13 @@ export default function MapView({
     const map = mapRef.current
     if (map?.getLayer('travel-highlight')) map.setFilter('travel-highlight', ['==', ['get', 'id'], lineHighlight ?? ''])
   }, [lineHighlight, mapRef])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map?.getLayer('ferry-included')) return
+    map.setLayoutProperty('ferry-included', 'visibility', settings.showFerriesIncluded ? 'visible' : 'none')
+    map.setLayoutProperty('ferry-discount', 'visibility', settings.showFerriesDiscount ? 'visible' : 'none')
+  }, [settings.showFerriesIncluded, settings.showFerriesDiscount, mapRef])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1020,6 +1148,7 @@ export default function MapView({
   }, [settings.showCurrencies, currencyData, mapRef])
 
   const classes = ['map']
+  if (faded) classes.push('faded')
   if (settings.showPlaceLabels) classes.push('labels-place')
   if (settings.showPeopleLabels) classes.push('labels-person')
   return <div ref={containerRef} className={classes.join(' ')} />

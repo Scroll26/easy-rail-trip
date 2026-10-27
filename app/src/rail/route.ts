@@ -1,16 +1,14 @@
+import type { RouteLeg } from '../types'
+
 // Train connections drawn along the tracks: the route comes from the Transitous
 // journey planner (one request per line, then stored with the line and synced).
 
 const API = 'https://api.transitous.org/api'
-const RAIL_MODES = 'HIGHSPEED_RAIL,LONG_DISTANCE,NIGHT_RAIL,REGIONAL_FAST_RAIL,REGIONAL_RAIL,RAIL'
+// Ferries too: some are part of the pass (each leg is checked against the Interrail list)
+const MODES = 'HIGHSPEED_RAIL,LONG_DISTANCE,NIGHT_RAIL,REGIONAL_FAST_RAIL,REGIONAL_RAIL,RAIL,FERRY'
 
-export interface RouteLeg {
-  from: string
-  to: string
-  /** Operator, e.g. "MÁV Személyszállítási Zrt." */
-  agency: string
-  mode: string
-}
+/** Bump when RouteLeg gets new fields, so stored routes are looked up again */
+export const ROUTE_VERSION = 2
 
 export interface RailRoute {
   path: [number, number][]
@@ -89,7 +87,7 @@ export async function railRoute(from: { lat: number; lng: number }, to: { lat: n
     fromPlace: `${from.lat},${from.lng}`,
     toPlace: `${to.lat},${to.lng}`,
     time: typicalDeparture(),
-    transitModes: RAIL_MODES,
+    transitModes: MODES,
     numItineraries: '1',
     detailedTransfers: 'false',
     maxPreTransitTime: '1200',
@@ -104,6 +102,13 @@ export async function railRoute(from: { lat: number; lng: number }, to: { lat: n
         from: { name: string }
         to: { name: string }
         agencyName?: string
+        displayName?: string
+        routeShortName?: string
+        tripShortName?: string
+        startTime?: string
+        endTime?: string
+        intermediateStops?: { name: string }[]
+        reservation?: 'NONE' | 'COMPULSORY'
         legGeometry?: { points: string; precision: number }
       }[]
     }[]
@@ -113,6 +118,16 @@ export async function railRoute(from: { lat: number; lng: number }, to: { lat: n
   const path = simplify(legs.flatMap((l) => decodePolyline(l.legGeometry!.points, l.legGeometry!.precision)))
   return {
     path: path.map(([x, y]) => [Math.round(x * 1e5) / 1e5, Math.round(y * 1e5) / 1e5] as [number, number]),
-    legs: legs.map((l) => ({ from: l.from.name, to: l.to.name, agency: l.agencyName ?? '', mode: l.mode })),
+    legs: legs.map((l) => ({
+      from: l.from.name,
+      to: l.to.name,
+      agency: l.agencyName ?? '',
+      mode: l.mode,
+      name: l.displayName || l.routeShortName || l.tripShortName || '',
+      departure: l.startTime,
+      arrival: l.endTime,
+      stops: (l.intermediateStops ?? []).map((s) => s.name),
+      reservation: l.reservation === 'COMPULSORY',
+    })),
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { RAIL_TYPES } from '../data/railTypes'
+import { FERRY_STYLE } from '../data/ferries'
 import { updateSettings } from '../store'
 import { NO_GROUP, type Group, type InterrailMode, type Settings } from '../types'
 
@@ -215,6 +216,23 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
                   <span className="menu-hint">tap one for its name and direct trains</span>
                 </span>
               </label>
+            </div>
+
+            <div className="menu-title">⛴️ Ferries</div>
+            <div className="rail-types">
+              {(['included', 'discount'] as const).map((k) => {
+                const key = k === 'included' ? 'showFerriesIncluded' : 'showFerriesDiscount'
+                return (
+                  <label key={k} className="check rail-type">
+                    <input type="checkbox" checked={settings[key]} onChange={() => updateSettings({ [key]: !settings[key] })} />
+                    <span className={'ferry-swatch ' + k} style={{ borderColor: FERRY_STYLE[k].color }} />
+                    <span>
+                      {FERRY_STYLE[k].label}
+                      <span className="menu-hint">{FERRY_STYLE[k].hint}</span>
+                    </span>
+                  </label>
+                )
+              })}
             </div>
 
             <div className="menu-title">⚙️ Other</div>

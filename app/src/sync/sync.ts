@@ -168,6 +168,32 @@ export async function resolveChoice(choice: 'merge' | 'replace' | 'cancel') {
   location.reload()
 }
 
+/** Is this device syncing with Google Drive? */
+export const isSyncOn = () => prefs.enabled
+
+/** Wipe this device: trip data, caches of lookups, sync settings. Reloads the app. */
+export async function deleteLocalData(): Promise<never> {
+  prefs = { enabled: false, lastSync: null }
+  try {
+    for (const key of Object.keys(localStorage)) if (key.startsWith('rail-planner:')) localStorage.removeItem(key)
+    sessionStorage.clear()
+  } catch {
+    /* storage unavailable */
+  }
+  await persistence.clearData()
+  location.reload()
+  return new Promise<never>(() => {})
+}
+
+/** Delete the trip file from Google Drive (asks to sign in if needed), then this device */
+export async function deleteEverywhere(): Promise<never> {
+  const token = currentToken() ?? (await requestToken(false))
+  const file = await drive.findFile(token)
+  if (file) await drive.remove(token, file.id)
+  await revoke()
+  return deleteLocalData()
+}
+
 export async function disconnect() {
   prefs = { enabled: false, lastSync: null }
   writePrefs(prefs)

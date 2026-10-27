@@ -59,6 +59,10 @@ export async function create(token: string, data: Uint8Array): Promise<RemoteFil
   return res.json()
 }
 
+export async function remove(token: string, id: string): Promise<void> {
+  await call(token, `${API}/${id}`, { method: 'DELETE' })
+}
+
 export async function update(token: string, id: string, data: Uint8Array): Promise<RemoteFile> {
   const res = await call(token, `${UPLOAD}/${id}?uploadType=media&fields=id,version`, {
     method: 'PATCH',

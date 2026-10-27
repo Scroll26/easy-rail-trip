@@ -1,4 +1,6 @@
-import type { Endpoint, LineKind, TravelLine } from './types'
+import { ROUTE_VERSION } from './rail/route'
+import { coverage } from './data/interrailOperators'
+import type { Endpoint, LineKind, RouteLeg, TravelLine } from './types'
 import type { Lookup } from './timeline'
 
 export const LINE_KINDS: Record<LineKind, { label: string; icon: string; color: string; hint: string }> = {
@@ -25,13 +27,38 @@ export interface DrawnLine {
   kind: LineKind
   title: string
   coords: [number, number][]
+  /** Train connections: the trains along the route */
+  legs?: RouteLeg[]
+}
+
+export const timeOf = (iso?: string) =>
+  iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
+
+/** Is the whole connection covered by the Interrail pass? */
+export function legSummary(legs: RouteLeg[]): { icon: string; text: string; tone: 'good' | 'warn' | 'bad' | 'neutral' } {
+  const c = legs.map((l) => coverage(l.agency, l.mode))
+  const reservations = legs.filter((l) => l.reservation).length
+  const changes = legs.length - 1
+  const how = changes ? `${changes} change${changes > 1 ? 's' : ''}` : 'direct'
+  if (c.includes('not')) return { icon: '✕', text: `Not fully covered by Interrail (${how})`, tone: 'bad' }
+  if (c.includes('unknown')) return { icon: '?', text: `Partly unclear, check the operators (${how})`, tone: 'neutral' }
+  const extra = [
+    c.includes('domestic') ? 'some legs domestic only' : '',
+    c.includes('ferry-discount') ? 'ferry at a discount' : '',
+    reservations ? `${reservations} reservation${reservations > 1 ? 's' : ''} needed` : '',
+  ].filter(Boolean)
+  return {
+    icon: '✓',
+    text: `Covered by Interrail (${how}${extra.length ? ', ' + extra.join(', ') : ''})`,
+    tone: extra.length ? 'warn' : 'good',
+  }
 }
 
 /** Identifies the ends a route was looked up for; a moved pin makes it stale */
 export function routeKey(line: TravelLine, lookup: Lookup) {
   const a = resolveEndpoint(line.from, lookup)
   const b = resolveEndpoint(line.to, lookup)
-  return [a.lat, a.lng, b.lat, b.lng].map((n) => n.toFixed(4)).join(',')
+  return `v${ROUTE_VERSION}:` + [a.lat, a.lng, b.lat, b.lng].map((n) => n.toFixed(4)).join(',')
 }
 
 /** The stored rail route of a train connection, if it's still for the current ends */
@@ -51,6 +78,6 @@ export function drawnLines(lines: TravelLine[], lookup: Lookup): DrawnLine[] {
           [a.lng, a.lat],
           [b.lng, b.lat],
         ]
-    return { id: l.id, kind: l.kind, title: `${a.name} → ${b.name}`, coords }
+    return { id: l.id, kind: l.kind, title: `${a.name} → ${b.name}`, coords, legs: currentRoute(l, lookup)?.legs }
   })
 }

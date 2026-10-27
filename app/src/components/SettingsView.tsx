@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadCountries } from '../countries'
 import SyncSection from './SyncSection'
+import DataSection from './DataSection'
 import { DEFAULT_INTERRAIL_COUNTRIES } from '../data/interrail'
 import { exportJson, importJson, updateSettings } from '../store'
 import type { Settings } from '../types'
@@ -69,6 +70,8 @@ export default function SettingsView({ settings }: { settings: Settings }) {
         </div>
         {message && <p className="small">{message}</p>}
       </section>
+
+      <DataSection onExport={download} />
 
       <section>
         <h3>Interrail countries</h3>

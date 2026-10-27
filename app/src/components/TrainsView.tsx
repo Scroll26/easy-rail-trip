@@ -9,7 +9,11 @@ import {
   type DirectResult,
   type Station,
 } from '../rail/transitous'
-import type { Place } from '../types'
+import type { Place, Settings } from '../types'
+import { updateSettings } from '../store'
+import { coverage, COVERAGE_LABEL } from '../data/interrailOperators'
+import { timeOf } from '../lines'
+import type { DirectTrainInfo } from '../rail/transitous'
 
 interface Props {
   origin: Station | null
@@ -25,6 +29,8 @@ interface Props {
   onQuery: (q: DirectQuery) => void
   onShow: (d: Destination) => void
   onAdd: (d: Destination) => void
+  trainInfo: Record<string, DirectTrainInfo | null | 'loading' | 'error'>
+  settings: Settings
 }
 
 const SLOTS = [
@@ -36,8 +42,23 @@ const HOURS = [4, 8, 12]
 /** Transitous "importance" above which a stop counts as a main station (cities, junctions) */
 const MAIN_STATION = 0.002
 
-const timeOf = (iso: string) =>
-  iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
+/** The train to a destination with its Interrail coverage (after the destination was tapped) */
+function TrainInfoLine({ info }: { info: DirectTrainInfo | null | 'loading' | 'error' | undefined }) {
+  if (info === undefined) return null
+  if (info === 'loading') return <span className="muted small">Checking the train…</span>
+  if (info === 'error') return <span className="muted small">Couldn't check the train (offline?)</span>
+  if (info === null) return <span className="muted small">No single train found for this time</span>
+  const c = COVERAGE_LABEL[coverage(info.agency, info.mode)]
+  return (
+    <span className="small train-info">
+      <span className={'cov-badge ' + c.tone}>
+        {c.icon} {c.text}
+      </span>{' '}
+      {timeOf(info.departure)} {info.name} · {info.agency}
+      {info.reservation ? ' · ⚠ reservation required' : ''}
+    </span>
+  )
+}
 
 export default function TrainsView({
   origin,
@@ -52,6 +73,8 @@ export default function TrainsView({
   onQuery,
   onShow,
   onAdd,
+  trainInfo,
+  settings,
 }: Props) {
   const [text, setText] = useState('')
   const [stations, setStations] = useState<Station[] | null>(null)
@@ -192,6 +215,14 @@ export default function TrainsView({
             <label className="check">
               <input
                 type="checkbox"
+                checked={settings.reachFocus}
+                onChange={() => updateSettings({ reachFocus: !settings.reachFocus })}
+              />
+              Fade the rest of the map
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
                 checked={query.noReservation}
                 onChange={(e) => onQuery({ ...query, noReservation: e.target.checked })}
               />
@@ -227,6 +258,7 @@ export default function TrainsView({
                       <span className="item-main">
                         <strong className="ellipsis">{d.name}</strong>
                         {d.arrival && <span className="muted small">arrives {timeOf(d.arrival)}</span>}
+                        <TrainInfoLine info={trainInfo[d.stopId]} />
                       </span>
                     </button>
                     <button

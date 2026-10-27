@@ -50,7 +50,7 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Timeline
 | Button | What it does |
 |---|---|
 | 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
-| 🗺️ **Map ▾** | **🎫 Interrail:** Highlight / Dim others / Off: which countries your pass covers (teal) · **🛤️ Railway lines** (on by default): switch each kind on or off (high-speed red, main lines orange, branch lines yellow, narrow gauge brown, other grey) and the station dots (tap one for its name) · **⚙️ Other:** map text (All / Countries only / None), 🛣️ streets (off by default), 💱 currencies (colours each currency zone and shows what 1 € is worth there), 🎨 pins in group colours |
+| 🗺️ **Map ▾** | **🎫 Interrail:** Highlight / Dim others / Off: which countries your pass covers (teal) · **🛤️ Railway lines** (on by default): switch each kind on or off (high-speed red, main lines orange, branch lines yellow, narrow gauge brown, other grey) and the station dots (tap one for its name) · **⛴️ Ferries:** ferries with an Interrail benefit, *included in the pass* (only Superfast Italy–Greece, it uses a travel day) and *discount with the pass* (Stena, Tallink Silja, Blue Star…), each switchable; tap a ferry for details · **⚙️ Other:** map text (All / Countries only / None), 🛣️ streets (off by default), 💱 currencies (colours each currency zone and shows what 1 € is worth there), 🎨 pins in group colours |
 | 🧳 **View trip** | One tap for a clean map: only your pins with names, country names and travel lines. Tap again for everything else |
 | **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
 | ◎ | Show where you are right now |
@@ -77,7 +77,7 @@ Draw where you'll travel, in the **Places** tab under **〰️ Travel lines**:
 3. Tap the destination.
 
 There are two kinds, in different colours:
-- **🚆 Train connection** (solid blue): a concrete train, station to station. It's drawn **along the actual tracks**, and the editor shows the legs and operators (e.g. "Wien Meidling → Salzburg Hbf · ÖBB"). Chosen automatically when you connect two stations. Trains from your timeline are blue too.
+- **🚆 Train connection** (solid blue): a concrete train, station to station. It's drawn **along the actual tracks**. Tap it to see its trains with times and stops, and whether **Interrail covers** each one (✓ covered, ✓ domestic only, ✕ not covered like Italo or Flixtrain, ? not on the list), plus reservation needs. Chosen automatically when you connect two stations. Trains from your timeline are blue too.
 - **🧭 General plan** (dashed purple): roughly where you want to go next, city to city.
 
 Tap a line on the map, or ✏️ in the list, to change its kind, swap its direction or add notes. Lines attached to pins follow them when you move the pins.
@@ -108,6 +108,8 @@ Choose a station (search it, tap a station dot on the map, or pick one of your p
 - **Leaving:** morning, midday or evening (evening includes night trains)
 - **Up to:** 4, 8 or 12 hours of travel
 - **Only trains without compulsory reservation:** handy with an Interrail pass
+- Tap a destination (in the list or on the map) to see **which train** goes there and whether **Interrail covers it**.
+- **Fade the rest of the map** (on by default) makes the destinations stand out.
 - Tap 🚆 next to a destination to see **its** direct trains and hop along your route; tap **＋** to add it to your places.
 
 Times count from the departure time you chose, so they include waiting for the first train. The timetables are not live, so check with the railway before you travel. Lookups you've done before also work offline.
@@ -135,6 +137,7 @@ Set a **daily goal** (for example 50 €) and log what you spend; the app tells 
 - Everything you enter is saved **automatically, on your device**. You don't need a save button.
 - Nothing is sent to us. There is no "us": there's no server, just this website.
 - **Uninstalling the app or clearing the browser data deletes your trip** unless you've synced it or exported a backup.
+- ⚙️ **Settings → Data & storage** shows how much space the app uses, can clear saved map areas, and can **delete your trip** on this device or everywhere (incl. Google Drive). It tells you before deleting whether the data can be recovered.
 - Full details: [Privacy policy](https://scroll26.github.io/rail-planner/privacy.html)
 
 ### Sync between phone and computer (Google Drive)
@@ -159,6 +162,8 @@ In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. You
 | The map is grey offline | Only areas you looked at while online are saved for offline use. Browse your route once before leaving |
 | Search doesn't work | Search needs internet. Offline you can still tap **+ Place** and then the map |
 | Sync says "Tap to sync" | Normal after about an hour. Tap it once to reconnect |
+| Does it need internet? | Your own trip (places, people, timeline, lines, budget) always works offline. Internet is needed for: map areas you haven't looked at yet, search, new direct-train lookups and train routes, fresh exchange rates and sync. Things you already looked up stay available offline |
+| How much storage does it use? | The trip itself is tiny. Saved map areas take the most space (usually tens of MB, at most a few hundred), are capped and cleaned up automatically, and can be cleared in Settings |
 
 ---
 

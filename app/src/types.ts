@@ -68,6 +68,24 @@ export interface Endpoint {
 /** "train" = a concrete train connection, "plan" = a general idea of where to go next */
 export type LineKind = 'train' | 'plan'
 
+/** One train (or ferry) of a train connection */
+export interface RouteLeg {
+  from: string
+  to: string
+  /** Operator, e.g. "Österreichische Bundesbahnen" */
+  agency: string
+  mode: string
+  /** Train name / number, e.g. "RJX 63" */
+  name?: string
+  /** ISO times on a typical weekday (the route was looked up for one) */
+  departure?: string
+  arrival?: string
+  /** Stops in between */
+  stops?: string[]
+  /** The data says a seat reservation is required */
+  reservation?: boolean
+}
+
 export interface TravelLine {
   id: string
   kind: LineKind
@@ -80,7 +98,7 @@ export interface TravelLine {
     key: string
     /** [lng, lat] points; null = no train route found */
     path: [number, number][] | null
-    legs: { from: string; to: string; agency: string; mode: string }[]
+    legs: RouteLeg[]
   } | null
   createdAt: number
   updatedAt: number
@@ -120,6 +138,10 @@ export interface Settings {
   hiddenGroups: string[]
   showCurrencies: boolean
   showTravelLines: boolean
+  showFerriesIncluded: boolean
+  showFerriesDiscount: boolean
+  /** Trains tab: fade everything else while direct-train results are shown */
+  reachFocus: boolean
   /** Clean map: only pins + names, country names and travel lines */
   simpleView: boolean
   /** Daily spending goal in EUR */

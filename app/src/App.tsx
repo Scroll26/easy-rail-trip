@@ -17,7 +17,7 @@ import { useBottomSheet } from './useBottomSheet'
 import { SyncChip } from './components/SyncSection'
 import TrainsView from './components/TrainsView'
 import BudgetView from './components/BudgetView'
-import { directTrains, findStation, type Destination, type DirectQuery, type DirectResult, type Station } from './rail/transitous'
+import { directTrainInfo, directTrains, findStation, type DirectTrainInfo, type Destination, type DirectQuery, type DirectResult, type Station } from './rail/transitous'
 import { addDays } from './dates'
 import { describeItem, newItem, trainLeg, type Lookup } from './timeline'
 import { reverse, search, type GeoResult } from './geocode'
@@ -107,6 +107,8 @@ export default function App() {
   const [trainsLoading, setTrainsLoading] = useState(false)
   const [trainsError, setTrainsError] = useState('')
   const [reachHighlight, setReachHighlight] = useState<string | null>(null)
+  /** Per destination stop id: the direct train and whether Interrail covers it */
+  const [trainInfo, setTrainInfo] = useState<Record<string, DirectTrainInfo | null | 'loading' | 'error'>>({})
   const [pick, setPick] = useState<Pick>(null)
   const sheet = useBottomSheet()
   const setSheetOpen = sheet.setOpen
@@ -203,6 +205,8 @@ export default function App() {
             showPlaceLabels: true,
             showPeopleLabels: true,
             showTravelLines: true,
+            showFerriesIncluded: false,
+            showFerriesDiscount: false,
           }
         : settings,
     [settings],
@@ -262,6 +266,7 @@ export default function App() {
 
   function showTrains(origin: Station) {
     setTrainsError('')
+    setTrainInfo({})
     setTrainsOrigin(origin)
     setReachHighlight(null)
     setSelection(null)
@@ -294,7 +299,17 @@ export default function App() {
     }
   }
 
+  /** Look up which train runs to a destination (and its operator), once per destination */
+  function checkDestination(d: Destination) {
+    if (!trainsOrigin || (trainInfo[d.stopId] && trainInfo[d.stopId] !== 'error')) return
+    setTrainInfo((t) => ({ ...t, [d.stopId]: 'loading' }))
+    directTrainInfo(trainsOrigin, d, trainsQuery)
+      .then((info) => setTrainInfo((t) => ({ ...t, [d.stopId]: info })))
+      .catch(() => setTrainInfo((t) => ({ ...t, [d.stopId]: 'error' })))
+  }
+
   function showDestination(d: Destination) {
+    checkDestination(d)
     setReachHighlight(d.stopId)
     if (window.matchMedia('(max-width: 799px)').matches) setSheetOpen(false)
     mapRef.current?.flyTo({ center: [d.lng, d.lat], zoom: Math.max(9, mapRef.current.getZoom()) })
@@ -567,7 +582,12 @@ export default function App() {
         highlight={reachHighlight}
         onOrigin={(s) => (s ? showTrains(s) : setTrainsOrigin(null))}
         onOriginFromPlace={(p) => trainsFrom(p.name, p.lat, p.lng, p.category === 'station')}
-        onQuery={setTrainsQuery}
+        onQuery={(q) => {
+          setTrainInfo({})
+          setTrainsQuery(q)
+        }}
+        trainInfo={trainInfo}
+        settings={settings}
         onShow={showDestination}
         onAdd={(d) => {
           setTab('places')
@@ -699,6 +719,13 @@ export default function App() {
         reach={trainsResult}
         reachHighlight={reachHighlight}
         onTrainsFrom={trainsFrom}
+        onReachSelect={(stopId) => {
+          const d = trainsResult?.destinations.find((x) => x.stopId === stopId)
+          if (!d) return
+          checkDestination(d)
+          setReachHighlight(stopId)
+          setTab('trains')
+        }}
         travel={travel}
         lineHighlight={lineHighlight}
         onEditLine={editLine}

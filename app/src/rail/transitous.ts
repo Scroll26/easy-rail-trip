@@ -247,3 +247,50 @@ export function formatMinutes(min: number) {
   const m = min % 60
   return h ? `${h} h ${String(m).padStart(2, '0')}` : `${m} min`
 }
+
+export interface DirectTrainInfo {
+  name: string
+  agency: string
+  mode: string
+  departure: string
+  arrival: string
+  reservation: boolean
+}
+
+const directInfoCache = new Map<string, DirectTrainInfo | null>()
+
+/** The first direct train between two stations for the chosen day/time: name, operator, reservation */
+export async function directTrainInfo(origin: Station, dest: Destination, query: DirectQuery): Promise<DirectTrainInfo | null> {
+  const key = [origin.lat.toFixed(4), origin.lng.toFixed(4), dest.stopId, query.date, query.hour, query.noReservation].join('|')
+  if (directInfoCache.has(key)) return directInfoCache.get(key)!
+  const [y, m, d] = query.date.split('-').map(Number)
+  const params = new URLSearchParams({
+    fromPlace: `${origin.lat},${origin.lng}`,
+    toPlace: dest.stopId,
+    time: new Date(y, m - 1, d, query.hour).toISOString(),
+    maxTransfers: '0',
+    transitModes: RAIL_MODES.join(','),
+    numItineraries: '1',
+    maxPreTransitTime: '600',
+    detailedTransfers: 'false',
+  })
+  if (query.noReservation) params.set('noCompulsoryReservation', 'true')
+  const res = await fetch(`${API}/v6/plan?${params}`)
+  if (!res.ok) throw new Error(`Lookup failed (${res.status})`)
+  const j = (await res.json()) as {
+    itineraries?: { legs: { mode: string; agencyName?: string; displayName?: string; routeShortName?: string; startTime: string; endTime: string; reservation?: string }[] }[]
+  }
+  const leg = j.itineraries?.[0]?.legs.find((l) => l.mode !== 'WALK')
+  const info = leg
+    ? {
+        name: leg.displayName || leg.routeShortName || '',
+        agency: leg.agencyName ?? '',
+        mode: leg.mode,
+        departure: leg.startTime,
+        arrival: leg.endTime,
+        reservation: leg.reservation === 'COMPULSORY',
+      }
+    : null
+  directInfoCache.set(key, info)
+  return info
+}
