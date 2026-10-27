@@ -15,6 +15,8 @@ A free trip planner for Interrail journeys through Europe. Put the places you wa
 
 Rail Planner is a *web app*: you open it in the browser once, then "install" it. After that it has its own icon and opens full-screen like any other app. You don't need an app store, and installing takes a few seconds.
 
+> You can also just use it in a normal browser tab without installing. Installing makes it easier to find and better at working offline.
+
 ### Android (Chrome)
 
 1. Open **https://scroll26.github.io/rail-planner/** in **Chrome**.
@@ -33,8 +35,6 @@ Rail Planner is a *web app*: you open it in the browser once, then "install" it.
 1. Open the link in **Chrome** or **Microsoft Edge**.
 2. Click the **install icon** at the right end of the address bar (a small screen with a down-arrow), or open the browser menu → **"Install Rail Planner"** (Edge: **Apps → Install this site as an app**).
 3. It opens in its own window. You'll find it in the Start menu or Launchpad.
-
-> You can also just use it in a normal browser tab without installing. Installing makes it easier to find and better at working offline.
 
 ---
 
