@@ -529,3 +529,6 @@ p.empty { padding: 12px 4px; line-height: 1.5; }
 .sync-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .sync-choice p { margin: 0 0 6px; }
 .error-text { color: var(--danger); }
+
+.last-sync { margin-top: -6px; }
+.last-sync b { color: var(--fg); font-variant-numeric: tabular-nums; }

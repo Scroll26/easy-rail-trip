@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react'
 import { connect, disconnect, resolveChoice, syncNow, useSyncState } from '../sync/sync'
 
+const exactFormat = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+})
+
+/** "Tue 27 Oct, 14:32:05" */
+const exact = (t: number) => exactFormat.format(t)
+
 function ago(t: number) {
   const s = Math.round((Date.now() - t) / 1000)
   if (s < 45) return 'just now'
@@ -99,7 +111,7 @@ export default function SyncSection() {
     )
 
   const line: Record<string, string> = {
-    idle: sync.lastSync ? `✓ Synced ${ago(sync.lastSync)}` : '✓ Connected',
+    idle: '✓ Up to date',
     syncing: 'Syncing…',
     offline: "Offline. Changes are saved on this device and sync when you're back online.",
     'needs-auth': 'Google needs you to reconnect (this happens about once an hour).',
@@ -110,6 +122,9 @@ export default function SyncSection() {
     <section>
       <h3>Sync · Google Drive</h3>
       <p className={'small sync-line ' + sync.status}>{line[sync.status]}</p>
+      <p className="small muted last-sync">
+        Last synced: {sync.lastSync ? <><b>{exact(sync.lastSync)}</b> ({ago(sync.lastSync)})</> : 'not yet'}
+      </p>
       <div className="row">
         <button
           className={sync.status === 'needs-auth' || sync.status === 'error' ? 'primary' : ''}
