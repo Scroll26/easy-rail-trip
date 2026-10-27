@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { DEFAULT_INTERRAIL_COUNTRIES } from './data/interrail'
-import type { DayInfo, Group, Person, Place, Settings, TimelineItem, TravelLine } from './types'
+import type { DayInfo, Expense, Group, Person, Place, Settings, TimelineItem, TravelLine } from './types'
 
 // The whole trip lives in one Yjs document. Each device keeps a copy in IndexedDB;
 // later the same document is merged via Google Drive, so offline edits on several
@@ -17,6 +17,7 @@ const timeline = doc.getMap<TimelineItem>('timeline')
 const days = doc.getMap<DayInfo>('days')
 const groups = doc.getMap<Group>('groups')
 const lines = doc.getMap<TravelLine>('lines')
+const expenses = doc.getMap<Expense>('expenses')
 
 const DEFAULT_SETTINGS: Settings = {
   interrailMode: 'highlight',
@@ -29,6 +30,8 @@ const DEFAULT_SETTINGS: Settings = {
   showCurrencies: false,
   showTravelLines: true,
   simpleView: false,
+  budgetDaily: 50,
+  budgetStart: null,
   mapLabels: 'all',
   showRailways: true,
   showStreets: false,
@@ -65,6 +68,10 @@ const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompar
 const placesStore = createMapStore(places, (m) => [...m.values()].sort(byListOrder))
 const peopleStore = createMapStore(people, (m) => [...m.values()].sort(byListOrder))
 const groupsStore = createMapStore(groups, (m) => [...m.values()].sort(byName))
+// Newest first
+const expensesStore = createMapStore(expenses, (m) =>
+  [...m.values()].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt),
+)
 const linesStore = createMapStore(lines, (m) => [...m.values()].sort((a, b) => listOrder(a) - listOrder(b)))
 const settingsStore = createMapStore(
   settings,
@@ -82,6 +89,15 @@ export const useTimeline = () => useSyncExternalStore(timelineStore.subscribe, t
 export const useDays = () => useSyncExternalStore(daysStore.subscribe, daysStore.get)
 export const useGroups = () => useSyncExternalStore(groupsStore.subscribe, groupsStore.get)
 export const useLines = () => useSyncExternalStore(linesStore.subscribe, linesStore.get)
+export const useExpenses = () => useSyncExternalStore(expensesStore.subscribe, expensesStore.get)
+
+export function saveExpense(e: Expense) {
+  expenses.set(e.id, { ...e, updatedAt: Date.now() })
+}
+
+export function deleteExpense(id: string) {
+  expenses.delete(id)
+}
 
 export function saveLine(line: TravelLine) {
   lines.set(line.id, { ...line, updatedAt: Date.now() })
@@ -191,6 +207,7 @@ export function exportJson() {
       days: [...days.values()],
       groups: [...groups.values()],
       lines: [...lines.values()],
+      expenses: [...expenses.values()],
       settings: Object.fromEntries(settings.entries()),
     },
     null,
@@ -209,6 +226,7 @@ export function importJson(text: string) {
     for (const d of data.days ?? []) days.set(d.date, d)
     for (const g of data.groups ?? []) groups.set(g.id, g)
     for (const l of data.lines ?? []) lines.set(l.id, l)
+    for (const e of data.expenses ?? []) expenses.set(e.id, e)
     for (const [k, v] of Object.entries(data.settings ?? {})) settings.set(k, v)
   })
   return {

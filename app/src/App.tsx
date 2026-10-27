@@ -15,6 +15,7 @@ import { useRates } from './rates'
 import { useBottomSheet } from './useBottomSheet'
 import { SyncChip } from './components/SyncSection'
 import TrainsView from './components/TrainsView'
+import BudgetView from './components/BudgetView'
 import { directTrains, findStation, type Destination, type DirectQuery, type DirectResult, type Station } from './rail/transitous'
 import { addDays } from './dates'
 import { describeItem, newItem, trainLeg, type Lookup } from './timeline'
@@ -31,6 +32,7 @@ import {
   saveLine,
   updateSettings,
   useDays,
+  useExpenses,
   useLines,
   useGroups,
   usePeople,
@@ -40,7 +42,16 @@ import {
 } from './store'
 import type { Endpoint, Person, Place, PlaceCategory, Selection, Settings, TimelineItem, TravelLine } from './types'
 
-type Tab = 'places' | 'people' | 'timeline' | 'trains' | 'settings'
+type Tab = 'places' | 'people' | 'timeline' | 'trains' | 'budget' | 'settings'
+
+const TAB_LABELS: Record<Tab, string> = {
+  timeline: 'Timeline',
+  places: 'Places',
+  people: 'People',
+  trains: 'Trains',
+  budget: 'Budget',
+  settings: '⚙️',
+}
 
 /** Next Wednesday: a normal weekday, so the timetable isn't a weekend one */
 function nextWeekday() {
@@ -66,8 +77,10 @@ export default function App() {
   const days = useDays()
   const groups = useGroups()
   const lines = useLines()
+  const expenses = useExpenses()
   const shapes = useCountries()
-  const rates = useRates(settings.showCurrencies)
+  // Needed for the currency overlay and for converting expenses
+  const rates = useRates(true)
   const mapRef = useRef<maplibregl.Map | null>(null)
 
   const [tab, setTab] = useState<Tab>('places')
@@ -455,7 +468,6 @@ export default function App() {
   const selectedPlace = selection?.kind === 'place' ? places.find((p) => p.id === selection.id) : undefined
   const selectedPerson = selection?.kind === 'person' ? people.find((p) => p.id === selection.id) : undefined
 
-
   let body: React.ReactNode
   if (editedLine) body = <LineEditor line={editedLine} lookup={lookup} onClose={() => setEditingLine(null)} />
   else if (editedItem)
@@ -493,6 +505,15 @@ export default function App() {
       />
     )
   else if (tab === 'settings') body = <SettingsView settings={settings} />
+  else if (tab === 'budget')
+    body = (
+      <BudgetView
+        expenses={expenses}
+        rates={rates}
+        settings={settings}
+        firstDay={[...timeline.map((i) => i.date), ...Object.keys(days)].filter((d): d is string => !!d).sort()[0] ?? null}
+      />
+    )
   else if (tab === 'trains')
     body = (
       <TrainsView
@@ -682,7 +703,7 @@ export default function App() {
             <span />
           </button>
           <nav className="tabs">
-            {(['timeline', 'places', 'people', 'trains', 'settings'] as Tab[]).map((t) => (
+            {(['timeline', 'places', 'people', 'trains', 'budget', 'settings'] as Tab[]).map((t) => (
               <button
                 key={t}
                 className={tab === t && !selection && !editedItem && !editedLine ? 'active' : ''}
@@ -695,15 +716,7 @@ export default function App() {
                 }}
                 title={t === 'settings' ? 'Settings' : undefined}
               >
-                {t === 'timeline'
-                  ? 'Timeline'
-                  : t === 'places'
-                    ? `Places (${places.length})`
-                    : t === 'people'
-                      ? `People (${people.length})`
-                      : t === 'trains'
-                        ? '🚆 Trains'
-                        : '⚙️'}
+                {TAB_LABELS[t]}
               </button>
             ))}
           </nav>

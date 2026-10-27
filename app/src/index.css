@@ -126,6 +126,8 @@ textarea { resize: vertical; }
   .panel.sheet-peek { --visible: calc(104px + env(safe-area-inset-bottom)); }
   .panel.sheet-half { --visible: 55dvh; }
   .panel.sheet-full { --visible: 100%; }
+  /* At half height the lower part of the panel is off-screen: leave room to scroll everything into view */
+  .panel.sheet-half .panel-body { padding-bottom: calc(92dvh - 55dvh + 24px); }
   /* The whole header (grabber + tabs) can be dragged */
   .sheet-header { touch-action: none; cursor: grab; }
   .sheet-handle {
@@ -588,3 +590,66 @@ button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 .line-title { margin: 0; }
 
 .add-popup .no-caps { text-transform: none; }
+
+/* ---------- Budget ---------- */
+.budget { display: flex; flex-direction: column; gap: 16px; }
+.budget h3 { margin: 0 0 8px; font-size: 15px; }
+.budget-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--bg-2);
+  border-left: 5px solid var(--border);
+}
+.budget-hero.good { border-left-color: #15803d; }
+.budget-hero.bad { border-left-color: #dc2626; }
+.status-line { font-size: 13px; font-weight: 700; }
+.budget-hero.good .status-line { color: #15803d; }
+.budget-hero.bad .status-line { color: #dc2626; }
+@media (prefers-color-scheme: dark) {
+  .budget-hero.good .status-line { color: #4ade80; }
+  .budget-hero.bad .status-line { color: #f87171; }
+}
+.hero-number { font-size: 34px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+.stat-row > div { display: flex; flex-direction: column; }
+.stat-row b { font-variant-numeric: tabular-nums; }
+.meter { height: 8px; border-radius: 4px; background: var(--border); margin-top: 8px; overflow: hidden; }
+.meter span { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.meter span.over { background: #dc2626; }
+
+.expense-form { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; }
+.amount-row { display: flex; gap: 6px; }
+.amount-row .amount { flex: 1; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 0; }
+.amount-row select { width: auto; }
+.cat-chips .chip { font-size: 12px; padding: 5px 9px; }
+
+.day-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.day-bars li.future { opacity: 0.6; }
+.day-bar {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 92px 1fr 70px;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 6px 2px;
+  border-radius: 6px;
+}
+.day-bar:disabled { opacity: 1; filter: none; cursor: default; }
+.day-bar:not(:disabled):hover { background: var(--bg-2); }
+.day-label { font-size: 13px; text-align: left; color: var(--muted); }
+.bar-track { position: relative; height: 10px; }
+.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0; background: var(--accent); min-width: 2px; }
+.bar-fill.over { background: #dc2626; }
+.goal-tick { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--fg); opacity: 0.55; }
+.day-amount { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.expense-list { margin: 2px 0 8px 12px; }
+.expense-eur { font-variant-numeric: tabular-nums; margin-left: auto; padding-left: 6px; }
+.budget-settings { padding-top: 8px; border-top: 1px solid var(--border); }
+@media (max-width: 799px) {
+  .tabs button { font-size: 13px; padding: 10px 2px; }
+}

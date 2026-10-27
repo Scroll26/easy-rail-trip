@@ -79,6 +79,25 @@ export interface TravelLine {
   updatedAt: number
 }
 
+export type ExpenseCategory = 'food' | 'stay' | 'transport' | 'sights' | 'groceries' | 'nightlife' | 'shopping' | 'other'
+
+export interface Expense {
+  id: string
+  /** YYYY-MM-DD */
+  date: string
+  amount: number
+  /** ISO 4217, e.g. EUR, CZK */
+  currency: string
+  /** 1 EUR = rate × currency at the time of entry; null if unknown then (offline) */
+  rate: number | null
+  category: ExpenseCategory
+  note: string
+  /** Big one-off cost (pass, prepaid hostel…): kept out of the daily budget */
+  oneOff: boolean
+  createdAt: number
+  updatedAt: number
+}
+
 export type InterrailMode = 'highlight' | 'dim' | 'off'
 
 export interface Settings {
@@ -95,6 +114,10 @@ export interface Settings {
   showTravelLines: boolean
   /** Clean map: only pins + names, country names and travel lines */
   simpleView: boolean
+  /** Daily spending goal in EUR */
+  budgetDaily: number
+  /** First day of the budget (YYYY-MM-DD); null = first timeline day */
+  budgetStart: string | null
   /** Basemap text: everything, only country names, or nothing */
   mapLabels: 'all' | 'countries' | 'none'
   /** OpenRailwayMap overlay */

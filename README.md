@@ -40,7 +40,7 @@ Rail Planner is a *web app*: you open it in the browser once, then "install" it.
 
 ## 2. How to use it
 
-The screen has two parts: the **map**, and the **panel** with the tabs *Timeline*, *Places*, *People*, 🚆 *Trains* and ⚙️ *Settings*.
+The screen has two parts: the **map**, and the **panel** with the tabs *Timeline*, *Places*, *People*, *Trains*, *Budget* and ⚙️ *Settings*.
 
 - **On a computer**, the panel is on the left.
 - **On a phone**, the panel sits at the bottom. **Drag the tab bar up or down** (or tap the little grey bar) to make it bigger or smaller.
@@ -111,6 +111,16 @@ Choose a station (search it, tap a station dot on the map, or pick one of your p
 - Tap 🚆 next to a destination to see **its** direct trains and hop along your route; tap **＋** to add it to your places.
 
 Times count from the departure time you chose, so they include waiting for the first train. The timetables are not live, so check with the railway before you travel. Lookups you've done before also work offline.
+
+### Budget
+
+Set a **daily goal** (for example 50 €) and log what you spend; the app tells you whether you're **under or over budget** so far.
+
+- **Add an expense:** type the amount, pick the currency (CZK, PLN, HUF, CHF, …) and a category, then tap **Add**. It's converted to euros with that day's exchange rate, which is kept with the expense. Offline it's converted later.
+- **The headline** shows how much you're under or over in total since the budget started (days × goal − spent), plus your average per day and today's spending.
+- **Per day:** one bar per day with the goal marked; days over the goal turn red with ⚠. Tap a day to see and edit its expenses.
+- **One-off costs** (the pass, prepaid hostels…): tick *One-off cost* so they don't spoil your daily numbers. They're listed and totalled separately.
+- The budget starts on your first timeline day, or set a start date in *Budget settings*.
 
 ### Settings ⚙️
 
