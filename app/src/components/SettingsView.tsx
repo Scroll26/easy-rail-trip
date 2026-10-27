@@ -92,6 +92,22 @@ export default function SettingsView({ settings }: { settings: Settings }) {
           Reset to official list
         </button>
       </section>
+
+      <section>
+        <h3>About</h3>
+        <p className="muted small">
+          Rail Planner is free and open source. No account, no tracking: your trip stays on your devices (and in your own
+          Google Drive if you sync).
+        </p>
+        <div className="row">
+          <a className="button" href="https://github.com/Scroll26/rail-planner#readme" target="_blank" rel="noreferrer">
+            ❓ How to use
+          </a>
+          <a className="button" href={import.meta.env.BASE_URL + 'privacy.html'} target="_blank" rel="noreferrer">
+            🔒 Privacy policy
+          </a>
+        </div>
+      </section>
     </div>
   )
 }

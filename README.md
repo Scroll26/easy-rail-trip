@@ -100,6 +100,7 @@ Your trip day by day. **Only days you actually plan are shown**, so a long trip 
 - Everything you enter is saved **automatically, on your device**. You don't need a save button.
 - Nothing is sent to us. There is no "us": there's no server, just this website.
 - **Uninstalling the app or clearing the browser data deletes your trip** unless you've synced it or exported a backup.
+- Full details: [Privacy policy](https://scroll26.github.io/rail-planner/privacy.html)
 
 ### Sync between phone and computer (Google Drive)
 
