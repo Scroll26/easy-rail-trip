@@ -43,12 +43,13 @@ export async function search(query: string): Promise<GeoResult[]> {
   return ((await res.json()) as NominatimItem[]).map(toResult)
 }
 
-export async function reverse(lat: number, lng: number): Promise<GeoResult | null> {
+/** Name of a map point; `zoom` 18 = building/street, 10 = city */
+export async function reverse(lat: number, lng: number, zoom = 18): Promise<GeoResult | null> {
   const params = new URLSearchParams({
     lat: String(lat),
     lon: String(lng),
     format: 'jsonv2',
-    zoom: '18',
+    zoom: String(zoom),
     'accept-language': 'en',
   })
   const res = await fetch(`${BASE}/reverse?${params}`)

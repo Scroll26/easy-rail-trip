@@ -156,6 +156,12 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
         </button>
         {menu === 'map' && (
           <div className="menu menu-right map-menu">
+            {settings.simpleView && (
+              <p className="simple-note">
+                ✨ Simple view is on, so these settings are paused.{' '}
+                <button className="ghost small" onClick={() => updateSettings({ simpleView: false })}>Turn off</button>
+              </p>
+            )}
             <div className="menu-title first">🎫 Interrail</div>
             <div className="segmented">
               {IR_MODES.map((m) => (
@@ -217,6 +223,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
               ))}
             </div>
             {check('🛣️ Streets', settings.showStreets, () => updateSettings({ showStreets: !settings.showStreets }))}
+            {check('〰️ Travel lines', settings.showTravelLines, () => updateSettings({ showTravelLines: !settings.showTravelLines }))}
             {check('💱 Currencies', settings.showCurrencies, () => updateSettings({ showCurrencies: !settings.showCurrencies }))}
             {check('🎨 Pins in group colours', settings.colorPlacesByGroup && settings.colorPeopleByGroup, () => {
               const on = !(settings.colorPlacesByGroup && settings.colorPeopleByGroup)

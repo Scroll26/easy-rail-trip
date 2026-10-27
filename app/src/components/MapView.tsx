@@ -8,6 +8,7 @@ import { COUNTRY_CURRENCY, CURRENCY_STYLE, NO_CURRENCY_LABEL } from '../data/cur
 import { formatRate, type Rates } from '../rates'
 import { findStation, formatMinutes, type DirectResult } from '../rail/transitous'
 import { RAIL_TYPE, RAIL_TYPES } from '../data/railTypes'
+import { LINE_KINDS, type DrawnLine } from '../lines'
 import { NO_GROUP, type Group, type Person, type Place, type PlaceCategory, type Selection, type Settings } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -21,7 +22,8 @@ interface Props {
   picking: boolean
   mapRef: React.RefObject<maplibregl.Map | null>
   onSelect: (sel: Selection) => void
-  onPick: (lat: number, lng: number) => void
+  /** A map tap while picking; `hit` says what was tapped (a pin, a station, a town) */
+  onPick: (lat: number, lng: number, hit?: PickHit) => void
   /** When set, only these markers are shown, each with its stop number */
   focus: Map<string, number> | null
   /** Train legs drawn as lines */
@@ -35,7 +37,29 @@ interface Props {
   reachHighlight: string | null
   /** Show direct trains from a station (exact spot) or a city (find its main station) */
   onTrainsFrom: (name: string, lat: number, lng: number, isStation: boolean) => void
+  travel: DrawnLine[]
+  lineHighlight: string | null
+  onEditLine: (id: string) => void
 }
+
+export interface PickHit {
+  placeId?: string
+  personId?: string
+  name?: string
+  /** A railway station was tapped */
+  station?: boolean
+}
+
+const travelGeoJson = (lines: DrawnLine[]): GeoJSON.FeatureCollection => ({
+  type: 'FeatureCollection',
+  features: lines.flatMap((l): GeoJSON.Feature[] => [
+    { type: 'Feature', properties: { id: l.id, kind: l.kind, title: l.title }, geometry: { type: 'LineString', coordinates: l.coords } },
+    // End dots, so lines to a free point don't just stop in the void
+    ...l.coords.map((c): GeoJSON.Feature => ({ type: 'Feature', properties: { kind: l.kind }, geometry: { type: 'Point', coordinates: c } })),
+  ]),
+})
+
+const IS_LINE: maplibregl.ExpressionSpecification = ['==', ['geometry-type'], 'LineString']
 
 const reachGeoJson = (reach: DirectResult | null): GeoJSON.FeatureCollection => ({
   type: 'FeatureCollection',
@@ -209,7 +233,7 @@ const RAIL_WIDTH: maplibregl.ExpressionSpecification = [
 ]
 
 // Our own text layers: never hidden by the "map text" setting
-const OWN_SYMBOL_LAYERS = new Set(['cur-labels'])
+const OWN_SYMBOL_LAYERS = new Set(['cur-labels', 'travel-arrows'])
 
 // One colour per currency zone
 const CURRENCY_FILL = [
@@ -290,6 +314,9 @@ export default function MapView({
   reach,
   reachHighlight,
   onTrainsFrom,
+  travel,
+  lineHighlight,
+  onEditLine,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const markers = useRef(new Map<string, maplibregl.Marker>())
@@ -297,8 +324,10 @@ export default function MapView({
   const currencyRef = useRef(currencyData)
   currencyRef.current = currencyData
   // Latest values for map event handlers registered once
-  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom })
-  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom }
+  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine })
+  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine }
+  const travelRef = useRef(travel)
+  travelRef.current = travel
   const reachRef = useRef(reach)
   reachRef.current = reach
   const legsRef = useRef(legs)
@@ -489,20 +518,92 @@ export default function MapView({
       applyLabels(map, latest.current.settings.mapLabels)
       applyRailwaysAndStreets(map, latest.current.settings)
 
+      // Travel lines: train connections solid blue, general plans dashed purple
+      const travelVisibility = latest.current.settings.showTravelLines ? 'visible' : 'none'
+      map.addSource('travel', { type: 'geojson', data: travelGeoJson(travelRef.current) })
+      map.addLayer({
+        id: 'travel-casing',
+        type: 'line',
+        source: 'travel',
+        filter: IS_LINE,
+        layout: { 'line-cap': 'round', visibility: travelVisibility },
+        paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.85 },
+      })
+      map.addLayer({
+        id: 'travel-highlight',
+        type: 'line',
+        source: 'travel',
+        filter: ['==', ['get', 'id'], ''],
+        layout: { 'line-cap': 'round', visibility: travelVisibility },
+        paint: { 'line-color': '#facc15', 'line-width': 11, 'line-opacity': 0.8 },
+      })
+      map.addLayer({
+        id: 'travel-train',
+        type: 'line',
+        source: 'travel',
+        filter: ['all', IS_LINE, ['==', ['get', 'kind'], 'train']],
+        layout: { 'line-cap': 'round', visibility: travelVisibility },
+        paint: { 'line-color': LINE_KINDS.train.color, 'line-width': 4 },
+      })
+      map.addLayer({
+        id: 'travel-plan',
+        type: 'line',
+        source: 'travel',
+        filter: ['all', IS_LINE, ['==', ['get', 'kind'], 'plan']],
+        layout: { 'line-cap': 'butt', visibility: travelVisibility },
+        paint: { 'line-color': LINE_KINDS.plan.color, 'line-width': 3.5, 'line-dasharray': [2.2, 1.4] },
+      })
+      map.addLayer({
+        id: 'travel-ends',
+        type: 'circle',
+        source: 'travel',
+        filter: ['==', ['geometry-type'], 'Point'],
+        layout: { visibility: travelVisibility },
+        paint: {
+          'circle-radius': 4.5,
+          'circle-color': '#ffffff',
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': ['match', ['get', 'kind'], 'train', LINE_KINDS.train.color, LINE_KINDS.plan.color],
+        },
+      })
+      map.addLayer({
+        id: 'travel-arrows',
+        type: 'symbol',
+        source: 'travel',
+        filter: IS_LINE,
+        layout: {
+          visibility: travelVisibility,
+          'symbol-placement': 'line',
+          'symbol-spacing': 90,
+          'text-field': '›',
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 22,
+          'text-keep-upright': false,
+          'text-allow-overlap': true,
+          'text-offset': [0, -0.08],
+        },
+        paint: {
+          'text-color': ['match', ['get', 'kind'], 'train', LINE_KINDS.train.color, LINE_KINDS.plan.color],
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
+        },
+      })
+
+      // Trains from the timeline look like train connections
       map.addSource('legs', { type: 'geojson', data: legsGeoJson(legsRef.current) })
       map.addLayer({
         id: 'legs-casing',
         type: 'line',
         source: 'legs',
         layout: { 'line-cap': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.8 },
+        paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.85 },
       })
       map.addLayer({
         id: 'legs',
         type: 'line',
         source: 'legs',
         layout: { 'line-cap': 'round' },
-        paint: { 'line-color': '#9a3412', 'line-width': 3, 'line-dasharray': [2, 1.5] },
+        paint: { 'line-color': LINE_KINDS.train.color, 'line-width': 4 },
       })
 
       // Direct trains: one dot per reachable station, coloured by travel time
@@ -578,11 +679,6 @@ export default function MapView({
     map.on('click', (e) => {
       const { picking, onPick, onSelect } = latest.current
       // Marker clicks stop propagation, so this is always a click on the map itself
-      if (picking) {
-        onPick(e.lngLat.lat, e.lngLat.lng)
-        return
-      }
-      onSelect(null)
       const { x, y } = e.point
       const box: [maplibregl.PointLike, maplibregl.PointLike] = [
         [x - 8, y - 8],
@@ -590,6 +686,23 @@ export default function MapView({
       ]
       const hit = (layers: string[]) =>
         map.queryRenderedFeatures(box, { layers: layers.filter((id) => map.getLayer(id)) })[0]
+      const featureName = (f: maplibregl.MapGeoJSONFeature) =>
+        String(f.properties['name:en'] || f.properties.name_en || f.properties['name:latin'] || f.properties.name || '')
+      const pointOf = (f: maplibregl.MapGeoJSONFeature) =>
+        f.geometry.type === 'Point' ? (f.geometry.coordinates as [number, number]) : ([e.lngLat.lng, e.lngLat.lat] as [number, number])
+
+      if (picking) {
+        // Snap to a station or town under the finger
+        const station = hit(['reach-dots', ...ORM_STATION_LAYERS])
+        const label = station ? null : hit(CLICKABLE_LAYERS)
+        const f = station ?? label
+        if (f) {
+          const [lng, lat] = pointOf(f)
+          onPick(lat, lng, { name: featureName(f), station: !!station || categoryFor(f) === 'station' })
+        } else onPick(e.lngLat.lat, e.lngLat.lng)
+        return
+      }
+      onSelect(null)
 
       // Most specific first: a direct-train result, a railway station, then any map label
       const reachHit = hit(['reach-dots'])
@@ -608,9 +721,36 @@ export default function MapView({
         )
         return
       }
+      const lineHit = hit(['travel-train', 'travel-plan'])
+      if (lineHit) {
+        showLinePopup(lineHit.properties as { id: string; kind: 'train' | 'plan'; title: string }, e.lngLat)
+        return
+      }
       const labelHit = hit(CLICKABLE_LAYERS)
       if (labelHit) showAddPopup(labelHit, e.lngLat)
     })
+
+    function showLinePopup(p: { id: string; kind: 'train' | 'plan'; title: string }, at: maplibregl.LngLat) {
+      const el = document.createElement('div')
+      el.className = 'add-popup'
+      const title = document.createElement('strong')
+      title.textContent = p.title
+      const kind = document.createElement('span')
+      kind.className = 'muted small'
+      kind.className = 'muted small no-caps'
+      kind.textContent = `${LINE_KINDS[p.kind].icon} ${LINE_KINDS[p.kind].label}`
+      const edit = document.createElement('button')
+      edit.textContent = '✏️ Edit line'
+      el.append(title, kind, edit)
+      const popup = new maplibregl.Popup({ className: 'map-popup', offset: 6, maxWidth: '260px' })
+        .setLngLat(at)
+        .setDOMContent(el)
+        .addTo(map)
+      edit.addEventListener('click', () => {
+        latest.current.onEditLine(p.id)
+        popup.remove()
+      })
+    }
 
     /** Railway station dot: its full name, plus direct trains / add */
     function showStationPopup(name: string, [lng, lat]: [number, number]) {
@@ -730,6 +870,25 @@ export default function MapView({
   }, [reachHighlight, mapRef])
 
   useEffect(() => {
+    const source = mapRef.current?.getSource('travel') as maplibregl.GeoJSONSource | undefined
+    source?.setData(travelGeoJson(travel))
+  }, [travel, mapRef])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map?.getLayer('travel-highlight')) map.setFilter('travel-highlight', ['==', ['get', 'id'], lineHighlight ?? ''])
+  }, [lineHighlight, mapRef])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map?.getLayer('travel-train')) return
+    for (const id of ['travel-casing', 'travel-highlight', 'travel-train', 'travel-plan', 'travel-ends', 'travel-arrows'])
+      map.setLayoutProperty(id, 'visibility', settings.showTravelLines ? 'visible' : 'none')
+    for (const id of ['reach-dots', 'reach-highlight', 'reach-origin'])
+      map.setLayoutProperty(id, 'visibility', settings.simpleView ? 'none' : 'visible')
+  }, [settings.showTravelLines, settings.simpleView, mapRef])
+
+  useEffect(() => {
     const source = mapRef.current?.getSource('legs') as maplibregl.GeoJSONSource | undefined
     source?.setData(legsGeoJson(legs))
   }, [legs, mapRef])
@@ -809,6 +968,12 @@ export default function MapView({
         el.append(document.createElement('span'), badge, label)
         el.addEventListener('click', (ev) => {
           ev.stopPropagation()
+          if (latest.current.picking) {
+            const m = markers.current.get(key)?.getLngLat()
+            if (m)
+              latest.current.onPick(m.lat, m.lng, w.sel?.kind === 'person' ? { personId: w.sel.id } : { placeId: w.sel!.id })
+            return
+          }
           latest.current.onSelect(w.sel)
         })
         marker = new maplibregl.Marker({ element: el, anchor: w.anchor, offset: w.anchor === 'bottom' ? [0, -12] : [0, 0] })

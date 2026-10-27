@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
-import MapView from './components/MapView'
+import MapView, { type PickHit } from './components/MapView'
+import LinesView, { LineEditor } from './components/LinesView'
+import { drawnLines, resolveEndpoint } from './lines'
 import PlaceEditor from './components/PlaceEditor'
 import PersonEditor from './components/PersonEditor'
 import SettingsView from './components/SettingsView'
@@ -26,14 +28,17 @@ import {
   savePerson,
   saveItem,
   savePlace,
+  saveLine,
+  updateSettings,
   useDays,
+  useLines,
   useGroups,
   usePeople,
   usePlaces,
   useSettings,
   useTimeline,
 } from './store'
-import type { Person, Place, PlaceCategory, Selection, TimelineItem } from './types'
+import type { Endpoint, Person, Place, PlaceCategory, Selection, Settings, TimelineItem, TravelLine } from './types'
 
 type Tab = 'places' | 'people' | 'timeline' | 'trains' | 'settings'
 
@@ -43,7 +48,13 @@ function nextWeekday() {
   d.setDate(d.getDate() + (((3 - d.getDay() + 7) % 7) || 7))
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-type Pick = { kind: 'new-place' } | { kind: 'move-place'; id: string } | { kind: 'person'; id: string } | null
+type Pick =
+  | { kind: 'new-place' }
+  | { kind: 'move-place'; id: string }
+  | { kind: 'person'; id: string }
+  | { kind: 'line-start' }
+  | { kind: 'line-end'; from: Endpoint; fromStation: boolean }
+  | null
 
 const NEW_PLACE_NAME = 'New place'
 
@@ -54,6 +65,7 @@ export default function App() {
   const timeline = useTimeline()
   const days = useDays()
   const groups = useGroups()
+  const lines = useLines()
   const shapes = useCountries()
   const rates = useRates(settings.showCurrencies)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -66,6 +78,9 @@ export default function App() {
   const [highlightItem, setHighlightItem] = useState<string | null>(null)
   /** Day shown alone on the map (timeline map button) */
   const [mapDay, setMapDay] = useState<string | null>(null)
+  const [placesView, setPlacesView] = useState<'places' | 'lines'>('places')
+  const [editingLine, setEditingLine] = useState<string | null>(null)
+  const [lineHighlight, setLineHighlight] = useState<string | null>(null)
   // Direct trains
   const [trainsOrigin, setTrainsOrigin] = useState<Station | null>(null)
   const [trainsQuery, setTrainsQuery] = useState<DirectQuery>(() => ({
@@ -125,6 +140,27 @@ export default function App() {
     }
     return nums
   }, [mapDay, timeline, lookup])
+
+  const travel = useMemo(() => drawnLines(lines, lookup), [lines, lookup])
+
+  // Simple view: only pins + names, country names and travel lines
+  const mapSettings: Settings = useMemo(
+    () =>
+      settings.simpleView
+        ? {
+            ...settings,
+            interrailMode: 'off',
+            showRailways: false,
+            showStreets: false,
+            showCurrencies: false,
+            mapLabels: 'countries',
+            showPlaceLabels: true,
+            showPeopleLabels: true,
+            showTravelLines: true,
+          }
+        : settings,
+    [settings],
+  )
 
   const legs = useMemo(
     () =>
@@ -316,8 +352,45 @@ export default function App() {
     select({ kind: 'person', id: person.id })
   }
 
-  async function handlePick(lat: number, lng: number) {
+  /** A line end from what was tapped: a pin, a station / town label, or a bare point */
+  async function endpointFor(lat: number, lng: number, hit?: PickHit): Promise<Endpoint> {
+    if (hit?.placeId) return resolveEndpoint({ placeId: hit.placeId, name: '', lat, lng }, lookup)
+    if (hit?.personId) return resolveEndpoint({ personId: hit.personId, name: '', lat, lng }, lookup)
+    if (hit?.name) return { name: hit.name, lat, lng }
+    const r = await reverse(lat, lng, 10).catch(() => null)
+    return { name: r?.name ?? `${lat.toFixed(3)}, ${lng.toFixed(3)}`, lat, lng }
+  }
+
+  async function handlePick(lat: number, lng: number, hit?: PickHit) {
     if (!pick) return
+    if (pick.kind === 'line-start') {
+      setPick({ kind: 'line-end', from: await endpointFor(lat, lng, hit), fromStation: !!hit?.station })
+      return
+    }
+    if (pick.kind === 'line-end') {
+      setPick(null)
+      setSheetOpen(true)
+      const to = await endpointFor(lat, lng, hit)
+      const now = Date.now()
+      const line: TravelLine = {
+        id: newId(),
+        // Station to station is a train connection; anything else a general plan
+        kind: pick.fromStation && hit?.station ? 'train' : 'plan',
+        from: pick.from,
+        to,
+        notes: '',
+        createdAt: now,
+        updatedAt: now,
+      }
+      saveLine(line)
+      setTab('places')
+      setPlacesView('lines')
+      setSelection(null)
+      setEditingItem(null)
+      setEditingLine(line.id)
+      setLineHighlight(line.id)
+      return
+    }
     setPick(null)
     setSheetOpen(true)
     if (pick.kind === 'new-place') {
@@ -357,12 +430,35 @@ export default function App() {
   }
 
   const editedItem = editingItem ? timeline.find((i) => i.id === editingItem) : undefined
+  const editedLine = editingLine ? lines.find((l) => l.id === editingLine) : undefined
+
+  function editLine(id: string) {
+    setSelection(null)
+    setEditingItem(null)
+    setEditingLine(id)
+    setLineHighlight(id)
+    setTab('places')
+    setPlacesView('lines')
+    setSheetOpen(true)
+  }
+
+  function showLine(line: TravelLine) {
+    setLineHighlight(line.id)
+    const a = resolveEndpoint(line.from, lookup)
+    const b = resolveEndpoint(line.to, lookup)
+    if (window.matchMedia('(max-width: 799px)').matches) setSheetOpen(false)
+    mapRef.current?.fitBounds(new maplibregl.LngLatBounds([a.lng, a.lat], [a.lng, a.lat]).extend([b.lng, b.lat]), {
+      padding: 100,
+      maxZoom: 11,
+    })
+  }
   const selectedPlace = selection?.kind === 'place' ? places.find((p) => p.id === selection.id) : undefined
   const selectedPerson = selection?.kind === 'person' ? people.find((p) => p.id === selection.id) : undefined
 
 
   let body: React.ReactNode
-  if (editedItem)
+  if (editedLine) body = <LineEditor line={editedLine} lookup={lookup} onClose={() => setEditingLine(null)} />
+  else if (editedItem)
     body = (
       <ItemEditor
         item={editedItem}
@@ -433,52 +529,75 @@ export default function App() {
   else
     body = (
       <>
-        <form className="search" onSubmit={runSearch}>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              if (!e.target.value) setResults(null)
-            }}
-            placeholder="Search a city, sight, address…"
-          />
-          <button type="submit">Search</button>
-        </form>
-        {searchError && <p className="muted small">{searchError}</p>}
-        {results && (
-          <ul className="list results">
-            {results.length === 0 && (
-              <li className="empty">{searching ? 'Searching…' : 'Nothing found. Try another spelling, or add the city name.'}</li>
-            )}
-            {results.map((r, i) => (
-              <li key={i}>
-                <button className="item" onClick={() => flyTo(r.lng, r.lat, 12)}>
-                  <span className="item-main">
-                    <strong>{r.name}</strong>
-                    <span className="muted small ellipsis">{r.label}</span>
-                  </span>
-                </button>
-                <button
-                  className="small-btn"
-                  onClick={() => {
-                    createPlace(r.lat, r.lng, r.name)
-                    setResults(null)
-                    setQuery('')
-                    flyTo(r.lng, r.lat, 12)
-                  }}
-                >
-                  + Add
-                </button>
-              </li>
-            ))}
-            <li>
-              <button className="ghost small" onClick={() => { setResults(null); setQuery('') }}>Close results</button>
-            </li>
-          </ul>
+        {tab === 'places' && (
+          <div className="segmented view-switch">
+            <button className={placesView === 'places' ? 'active' : ''} onClick={() => setPlacesView('places')}>
+              📍 Places ({places.length})
+            </button>
+            <button className={placesView === 'lines' ? 'active' : ''} onClick={() => setPlacesView('lines')}>
+              〰️ Travel lines ({lines.length})
+            </button>
+          </div>
         )}
-
-        {!results && (
+        {!(tab === 'places' && placesView === 'lines') && (
+          <>
+          <form className="search" onSubmit={runSearch}>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                if (!e.target.value) setResults(null)
+              }}
+              placeholder="Search a city, sight, address…"
+            />
+            <button type="submit">Search</button>
+          </form>
+          {searchError && <p className="muted small">{searchError}</p>}
+          {results && (
+            <ul className="list results">
+              {results.length === 0 && (
+                <li className="empty">{searching ? 'Searching…' : 'Nothing found. Try another spelling, or add the city name.'}</li>
+              )}
+              {results.map((r, i) => (
+                <li key={i}>
+                  <button className="item" onClick={() => flyTo(r.lng, r.lat, 12)}>
+                    <span className="item-main">
+                      <strong>{r.name}</strong>
+                      <span className="muted small ellipsis">{r.label}</span>
+                    </span>
+                  </button>
+                  <button
+                    className="small-btn"
+                    onClick={() => {
+                      createPlace(r.lat, r.lng, r.name)
+                      setResults(null)
+                      setQuery('')
+                      flyTo(r.lng, r.lat, 12)
+                    }}
+                  >
+                    + Add
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button className="ghost small" onClick={() => { setResults(null); setQuery('') }}>Close results</button>
+              </li>
+            </ul>
+          )}
+          </>
+        )}
+        {!results && tab === 'places' && placesView === 'lines' && (
+          <LinesView
+            lines={lines}
+            lookup={lookup}
+            highlightId={lineHighlight}
+            onAdd={() => startPick({ kind: 'line-start' })}
+            onShow={showLine}
+            onEdit={editLine}
+          />
+        )}
+        {!results && !(tab === 'places' && placesView === 'lines') && (
           <CollectionView
             key={tab}
             kind={tab === 'places' ? 'place' : 'person'}
@@ -501,7 +620,7 @@ export default function App() {
       <MapView
         places={places}
         people={people}
-        settings={settings}
+        settings={mapSettings}
         selection={selection ?? highlight}
         picking={!!pick}
         mapRef={mapRef}
@@ -518,9 +637,19 @@ export default function App() {
         reach={trainsResult}
         reachHighlight={reachHighlight}
         onTrainsFrom={trainsFrom}
+        travel={travel}
+        lineHighlight={lineHighlight}
+        onEditLine={editLine}
       />
 
       <MapToolbar settings={settings} groups={groups} ratesNote={ratesNote} />
+      <button
+        className={'simple-toggle' + (settings.simpleView ? ' active' : '')}
+        onClick={() => updateSettings({ simpleView: !settings.simpleView })}
+        title="Only pins, country names and travel lines"
+      >
+        {settings.simpleView ? '✨ Simple view: on' : '✨ Simple view'}
+      </button>
       <SyncChip />
 
       {mapDay && !pick && (
@@ -536,6 +665,8 @@ export default function App() {
             {pick.kind === 'new-place' && 'Tap the map to drop a new place'}
             {pick.kind === 'move-place' && 'Tap the map to move the pin'}
             {pick.kind === 'person' && 'Tap the map where this person is'}
+            {pick.kind === 'line-start' && 'Line: tap the start (pin, station, town or any point)'}
+            {pick.kind === 'line-end' && `From ${pick.from.name}: now tap the destination`}
           </span>
           <button onClick={() => { setPick(null); setSheetOpen(true) }}>Cancel</button>
         </div>
@@ -554,11 +685,12 @@ export default function App() {
             {(['timeline', 'places', 'people', 'trains', 'settings'] as Tab[]).map((t) => (
               <button
                 key={t}
-                className={tab === t && !selection && !editedItem ? 'active' : ''}
+                className={tab === t && !selection && !editedItem && !editedLine ? 'active' : ''}
                 onClick={() => {
                   setTab(t)
                   setSelection(null)
                   setEditingItem(null)
+                  setEditingLine(null)
                   setSheetOpen(true)
                 }}
                 title={t === 'settings' ? 'Settings' : undefined}

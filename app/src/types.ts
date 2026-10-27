@@ -56,6 +56,29 @@ export interface Group {
 /** Stands for "items without a group" in filters and map toggles */
 export const NO_GROUP = '__none'
 
+/** One end of a travel line: a pin (followed when it moves) or a fixed point with a name */
+export interface Endpoint {
+  placeId?: string | null
+  personId?: string | null
+  name: string
+  lat: number
+  lng: number
+}
+
+/** "train" = a concrete train connection, "plan" = a general idea of where to go next */
+export type LineKind = 'train' | 'plan'
+
+export interface TravelLine {
+  id: string
+  kind: LineKind
+  from: Endpoint
+  to: Endpoint
+  notes: string
+  order?: number
+  createdAt: number
+  updatedAt: number
+}
+
 export type InterrailMode = 'highlight' | 'dim' | 'off'
 
 export interface Settings {
@@ -69,6 +92,9 @@ export interface Settings {
   /** Group ids (or NO_GROUP-prefixed kind) hidden on the map */
   hiddenGroups: string[]
   showCurrencies: boolean
+  showTravelLines: boolean
+  /** Clean map: only pins + names, country names and travel lines */
+  simpleView: boolean
   /** Basemap text: everything, only country names, or nothing */
   mapLabels: 'all' | 'countries' | 'none'
   /** OpenRailwayMap overlay */

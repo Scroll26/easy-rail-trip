@@ -562,3 +562,29 @@ button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 .rail-swatch { flex: none; width: 22px; height: 5px; border-radius: 3px; margin-top: 8px; }
 .station-swatch { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2px solid #1e293b; margin: 4px 6px 0; }
 .check.disabled { opacity: 0.5; }
+
+/* ---------- Simple view + travel lines ---------- */
+.simple-toggle {
+  position: absolute;
+  z-index: 4;
+  right: 56px;
+  bottom: 30px;
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  font-weight: 600;
+}
+.simple-toggle.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+@media (max-width: 799px) {
+  .simple-toggle { bottom: 120px; right: 10px; }
+}
+.simple-note { margin: 0; font-size: 12px; background: var(--bg-2); border-radius: 8px; padding: 6px 8px; }
+.view-switch { display: flex; margin-bottom: 10px; }
+.view-switch button { flex: 1; justify-content: center; }
+.line-legend { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.line-swatch { display: inline-block; width: 22px; height: 0; vertical-align: middle; border-top: 4px solid #2563eb; }
+.line-swatch.plan { border-top: 3px dashed #9333ea; }
+.line-title { margin: 0; }
+
+.add-popup .no-caps { text-transform: none; }
