@@ -137,6 +137,8 @@ export type InterrailMode = 'highlight' | 'dim' | 'off'
 
 /** What stays on the map while "View trip" is on (everything else in the Map menu is paused) */
 export interface TripViewOptions {
+  places: boolean
+  people: boolean
   pinNames: boolean
   connections: boolean
   interrail: boolean

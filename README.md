@@ -51,7 +51,7 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Trip*, *
 |---|---|
 | 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
 | 🗺️ **Map ▾** | **🎫 Interrail:** Highlight / Dim others / Off: which countries your pass covers (teal) · **🛤️ Railway lines** (on by default): switch each kind on or off (high-speed red, main lines orange, branch lines yellow, narrow gauge brown, other grey) and the station dots (tap one for its name) · **⛴️ Ferries:** ferries with an Interrail benefit, *included in the pass* (only Superfast Italy–Greece, it uses a travel day) and *discount with the pass* (Stena, Tallink Silja, Blue Star…), each switchable; tap a ferry for details · **⚙️ Other:** map text (All / Countries only / None), 🛣️ streets (off by default), 💱 currencies (colours each currency zone and shows what 1 € is worth there), 🎨 pins in group colours |
-| 🧳 **View trip ▾** | One tap for a clean map: by default only your pins with names, country names and your connections. Tap again for everything else. The **▾** menu sets what stays on while it's on (names, connections, Interrail countries, railway lines, ferries, streets, currencies, direct-train results, map text); *Reset to default* brings back the clean default |
+| 🧳 **View trip ▾** | One tap for a clean map: by default only your pins with names, country names and your connections. Tap again for everything else. The **▾** menu sets what stays on while it's on (places, people, names, connections, Interrail countries, railway lines, ferries, streets, currencies, direct-train results, map text); *Reset to default* brings back the clean default. While it's on, the 📍 Places / 🧑 People buttons switch its own Places / People options |
 | **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
 | ◎ | Show where you are right now |
 
@@ -97,7 +97,7 @@ Choose a station (search it, tap a station dot on the map, or pick one of your p
 - **Up to:** 4, 8 or 12 hours of travel
 - **Only trains without compulsory reservation:** handy with an Interrail pass
 - Tap a destination (in the list or on the map) to see **which train** goes there and whether **Interrail covers it**.
-- **Fade the rest of the map** (on by default) makes the destinations stand out.
+- **Fade the rest of the map** (on by default) makes the destinations stand out. The dots and the fading only show while the Trains tab is open; switch tabs and the map is back to normal, switch back and your results are still there.
 - Tap 🚆 next to a destination to see **its** direct trains and hop along your route; tap 📍 to add it to your places.
 - **＋ Trip** adds that train to your trip, with a new stop at the destination. Opened from the Trip tab, the button says **Use** and fills in that connection.
 - Opened from your trip, it searches your **travel day**. If that day is more than about 6 weeks away (timetables aren't published that far ahead), it searches a typical weekday instead and says so.

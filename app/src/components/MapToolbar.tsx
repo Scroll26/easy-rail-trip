@@ -12,6 +12,8 @@ const IR_MODES: { mode: InterrailMode; label: string }[] = [
 
 /** The switches of the View trip menu, in order */
 const TRIP_VIEW_ITEMS: { key: Exclude<keyof TripViewOptions, 'mapLabels'>; label: string }[] = [
+  { key: 'places', label: '📍 Places' },
+  { key: 'people', label: '🧑 People' },
   { key: 'pinNames', label: '🏷️ Names of pins' },
   { key: 'connections', label: '〰️ Trip connections' },
   { key: 'interrail', label: '🎫 Interrail countries' },
@@ -61,7 +63,13 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
 
   const layer = (kind: 'place' | 'person') => {
     const isPlace = kind === 'place'
-    const shown = isPlace ? settings.showPlaces : settings.showPeople
+    // While View trip is on, these buttons switch its own Places / People options
+    const viewTrip = settings.simpleView
+    const shown = viewTrip ? settings.tripView[kind === 'place' ? 'places' : 'people'] : isPlace ? settings.showPlaces : settings.showPeople
+    const toggleShown = () =>
+      viewTrip
+        ? updateSettings({ tripView: { ...settings.tripView, [isPlace ? 'places' : 'people']: !shown } })
+        : updateSettings(isPlace ? { showPlaces: !shown } : { showPeople: !shown })
     const labels = isPlace ? settings.showPlaceLabels : settings.showPeopleLabels
     const byGroup = isPlace ? settings.colorPlacesByGroup : settings.colorPeopleByGroup
     const kindGroups = groups.filter((g) => g.kind === kind)
@@ -71,7 +79,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
       <div className="split">
         <button
           className={'split-main' + (shown ? ' active' : '')}
-          onClick={() => updateSettings(isPlace ? { showPlaces: !shown } : { showPeople: !shown })}
+          onClick={toggleShown}
         >
           {isPlace ? '📍 Places' : '🧑 People'}
           {shown && hiddenCount > 0 && <span className="badge-dot" title="Some groups hidden" />}
@@ -89,7 +97,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
               <input
                 type="checkbox"
                 checked={shown}
-                onChange={() => updateSettings(isPlace ? { showPlaces: !shown } : { showPeople: !shown })}
+                onChange={toggleShown}
               />
               Show on map
             </label>
@@ -190,10 +198,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
                 </button>
               ))}
             </div>
-            <p className="menu-hint">
-              Your pins always stay (hide them with 📍 Places / 🧑 People). Everything else comes back when you turn View
-              trip off.
-            </p>
+            <p className="menu-hint">Everything else comes back when you turn View trip off.</p>
             <button className="ghost small" disabled={!tripViewChanged} onClick={() => updateSettings({ tripView: DEFAULT_TRIP_VIEW })}>
               Reset to default
             </button>

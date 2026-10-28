@@ -260,6 +260,8 @@ export default function App() {
       showStreets: v.streets,
       showCurrencies: v.currencies,
       mapLabels: v.mapLabels,
+      showPlaces: v.places,
+      showPeople: v.people,
       showPlaceLabels: v.pinNames,
       showPeopleLabels: v.pinNames,
       showTravelLines: v.connections,
@@ -267,7 +269,9 @@ export default function App() {
       showFerriesDiscount: v.ferries && (ferriesOff || settings.showFerriesDiscount),
     }
   }, [settings])
-  const hideReach = settings.simpleView && !settings.tripView.directTrains
+  // Direct-train results only while the Trains tab is open (they're kept for when you come back)
+  const trainsOpen = tab === 'trains' && !selection && !editingStop && !editingLine
+  const hideReach = !trainsOpen || (settings.simpleView && !settings.tripView.directTrains)
 
   // Zoom to the focused stop
   useEffect(() => {

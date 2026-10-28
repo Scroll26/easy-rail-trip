@@ -28,6 +28,8 @@ void persistence.whenSynced.then(() =>
 
 /** View trip by default: pins with names, your connections and country names only */
 export const DEFAULT_TRIP_VIEW: TripViewOptions = {
+  places: true,
+  people: true,
   pinNames: true,
   connections: true,
   interrail: false,
