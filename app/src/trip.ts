@@ -37,6 +37,8 @@ export type TripEntry =
       date: string
       /** Day it arrives (the next one for night trains) */
       arrive: string
+      /** Nights between the previous entry and a fixed departure date: > 0 unplanned, < 0 overlapping */
+      gap: number
     }
 
 export interface Trip {
@@ -57,9 +59,9 @@ export function buildTrip(stops: Stop[], lines: TravelLine[], tripStart: string 
     ...stops.map((s) => ({ kind: 'stop' as const, order: s.order, s })),
     ...lines.map((l) => ({ kind: 'line' as const, order: listOrder(l), l })),
   ].sort((a, b) => a.order - b.order)
-  const firstFixed = sorted.find((e) => e.kind === 'stop' && e.s.fixedDate)
-  const start =
-    tripStart ?? (firstFixed?.kind === 'stop' ? firstFixed.s.fixedDate : null) ?? todayDate()
+  const fixedOf = (e: (typeof sorted)[number]) => (e.kind === 'stop' ? e.s.fixedDate : e.l.fixedDate) ?? null
+  const firstFixed = sorted.find(fixedOf)
+  const start = tripStart ?? (firstFixed && fixedOf(firstFixed)) ?? todayDate()
   let cursor = start
   const entries: TripEntry[] = sorted.map((e) => {
     if (e.kind === 'stop') {
@@ -68,9 +70,10 @@ export function buildTrip(stops: Stop[], lines: TravelLine[], tripStart: string 
       cursor = addDays(arrive, e.s.nights)
       return { kind: 'stop', id: e.s.id, order: e.order, stop: e.s, arrive, depart: cursor, gap }
     }
-    const date = cursor
+    const date = e.l.fixedDate ?? cursor
+    const gap = daysBetween(cursor, date)
     cursor = e.l.overnight ? addDays(date, 1) : date
-    return { kind: 'line', id: e.l.id, order: e.order, line: e.l, date, arrive: cursor }
+    return { kind: 'line', id: e.l.id, order: e.order, line: e.l, date, arrive: cursor, gap }
   })
   return { entries, start, end: cursor, dated: !!tripStart || !!firstFixed }
 }
@@ -81,6 +84,19 @@ export const tripLines = (trip: Trip) =>
   trip.entries.filter((e): e is Extract<TripEntry, { kind: 'line' }> => e.kind === 'line')
 export type StopEntry = ReturnType<typeof tripStops>[number]
 export type LineEntry = ReturnType<typeof tripLines>[number]
+
+/**
+ * For an entry that doesn't fit the stop right before it: that stop with the number of
+ * nights that would make it fit (null when the entry before isn't a stop, or it can't be done)
+ */
+export function fitPrevStop(trip: Trip, id: string) {
+  const i = trip.entries.findIndex((e) => e.id === id)
+  const entry = trip.entries[i]
+  const prev = trip.entries[i - 1]
+  if (!entry || entry.gap === 0 || prev?.kind !== 'stop') return null
+  const nights = prev.stop.nights + entry.gap
+  return nights >= 0 ? { stop: prev, nights } : null
+}
 
 /** The stop where you sleep on the night of `date` */
 export const stopForNight = (trip: Trip, date: string) =>

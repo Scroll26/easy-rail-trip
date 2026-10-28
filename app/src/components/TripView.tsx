@@ -45,6 +45,9 @@ interface Props {
   onOpenBudget: () => void
 }
 
+const gapText = (gap: number) =>
+  gap > 0 ? `${gap} unplanned ${gap === 1 ? 'night' : 'nights'} before` : `overlaps by ${-gap} ${gap === -1 ? 'night' : 'nights'}`
+
 const nights = (n: number) => (n === 0 ? 'passing through' : n === 1 ? '1 night' : `${n} nights`)
 
 export default function TripView(props: Props) {
@@ -216,7 +219,7 @@ function StopRow({ e, lookup, activities, onShow }: { e: StopEntry; lookup: Look
         </span>
         {e.gap !== 0 && (
           <span className="warn-text small">
-            ⚠ {e.gap > 0 ? `${e.gap} unplanned ${e.gap === 1 ? 'night' : 'nights'} before` : `overlaps by ${-e.gap} ${e.gap === -1 ? 'night' : 'nights'}`}
+            ⚠ {gapText(e.gap)}
           </span>
         )}
       </span>
@@ -229,7 +232,7 @@ function LineRow({ e, lookup, onShow }: { e: LineEntry; lookup: Lookup; onShow: 
   const t = lineTrains(e.line, lookup)
   const sum = t.legs.length ? legSummary(t.legs) : null
   const parts = [
-    formatDay(e.date) + (t.departure ? ' ' + timeOf(t.departure) : ''),
+    formatDay(e.date) + (t.departure ? ' ' + timeOf(t.departure) : '') + (e.line.fixedDate ? ' 📌' : ''),
     e.line.overnight ? '🌙 night train' : '',
     t.names.join(' + '),
   ].filter(Boolean)
@@ -246,6 +249,7 @@ function LineRow({ e, lookup, onShow }: { e: LineEntry; lookup: Lookup; onShow: 
             {e.line.kind === 'plan' && <span className="muted">no train chosen yet</span>}
           </span>
         )}
+        {e.gap !== 0 && <span className="warn-text small">⚠ {gapText(e.gap)}</span>}
       </span>
     </button>
   )

@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { CATEGORIES } from '../data/categories'
 import { addDays, formatDay } from '../dates'
 import { deleteActivity, deleteStop, newId, nextActivityOrder, saveActivity, saveStop } from '../store'
-import { activityDate, activityDay, km, stayName, stopDays, type Lookup, type StopEntry } from '../trip'
+import { activityDate, activityDay, km, stayName, stopDays, type Lookup, type StopEntry, type Trip } from '../trip'
 import type { Activity, StayInfo, Stop } from '../types'
 import PriceField from './PriceField'
+import GapNotice from './GapNotice'
 
 interface Props {
+  trip: Trip
   entry: StopEntry
   activities: Activity[]
   lookup: Lookup
@@ -20,7 +22,7 @@ type StayKind = 'none' | 'place' | 'person' | 'other'
 
 const nightsLabel = (n: number) => (n === 0 ? 'passing through' : n === 1 ? '1 night' : `${n} nights`)
 
-export default function StopEditor({ entry, activities, lookup, onClose, onOpenPlace, onShowPlace, onTrains }: Props) {
+export default function StopEditor({ trip, entry, activities, lookup, onClose, onOpenPlace, onShowPlace, onTrains }: Props) {
   const { stop } = entry
   const place = lookup.places.get(stop.placeId)
   const [picking, setPicking] = useState(false)
@@ -106,17 +108,7 @@ export default function StopEditor({ entry, activities, lookup, onClose, onOpenP
         📅 {formatDay(entry.arrive)}
         {stop.nights > 0 ? ` → ${formatDay(entry.depart)}` : ''} · {nightsLabel(stop.nights)}
       </p>
-      {entry.gap > 0 && (
-        <p className="warn-text small">
-          ⚠ {entry.gap} {entry.gap === 1 ? 'night' : 'nights'} unplanned before this stop (its arrival date is fixed).
-        </p>
-      )}
-      {entry.gap < 0 && (
-        <p className="warn-text small">
-          ⚠ Overlaps the stop before by {-entry.gap} {entry.gap === -1 ? 'night' : 'nights'}. Shorten it, or change the
-          fixed date.
-        </p>
-      )}
+      <GapNotice trip={trip} id={entry.id} gap={entry.gap} lookup={lookup} />
 
       <div className="row two">
         <div className="field">

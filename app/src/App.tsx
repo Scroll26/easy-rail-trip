@@ -672,6 +672,7 @@ export default function App() {
     body = (
       <LineEditor
         line={editedLine}
+        trip={trip}
         entry={tripLines(trip).find((l) => l.id === editedLine.id)}
         lookup={lookup}
         routeFailed={routeFailed.has(editedLine.id) && !routing.has(editedLine.id)}
@@ -692,6 +693,7 @@ export default function App() {
   else if (editedStop)
     body = (
       <StopEditor
+        trip={trip}
         entry={editedStop}
         activities={activities.filter((a) => a.stopId === editedStop.id)}
         lookup={lookup}

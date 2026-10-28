@@ -64,7 +64,7 @@ Your route as **stops** (where you sleep and for how many nights) and the **conn
 - **+ Stop:** pick a town from your places, or search for one. Each new stop gets a rough connection from the stop before.
 - **Tap a stop** to fly to it; **🗺️** shows only that stop on the map (the town, your bed and your things to do, numbered, plus the connections in and out).
 - **✏️ on a stop:** the number of nights (0 = just passing through), **where you sleep** (one of your places, a person you know, or any name) with an optional **price**, and **things to do**: your places (nearest first) and notes. Give them a day and time once you know; until then they sit under *Anytime*.
-- **Fixed dates:** pick an arrival date for a stop (a booked night train, a concert) and it stays put. If the stops before it are too short or too long, you see *"2 unplanned nights"* or *"overlaps by 1 night"*.
+- **Fixed dates (optional):** give a stop an arrival date, or a connection a departure date (a booked train, a concert), and it stays put (📌). Everything after it follows from that date. If the stop before doesn't fit, you see *"2 unplanned nights"* or *"overlaps by 1 night"* and a button that fixes it in one tap (*"Stay 2 more nights in Vienna"*). Clear a fixed date with *"Leave when the stop before ends instead"*.
 - **Drag** (⠿) stops and connections to reorder them.
 - **Pass travel days:** enter how many travel days your pass has (leave it empty for a continuous pass). The trip counts the days you travel; a night train counts once.
 - **Today:** during the trip a card at the top shows tonight's bed, your next train (with ⚠ if it needs a reservation), today's things to do and today's spending.
@@ -75,7 +75,7 @@ Your route as **stops** (where you sleep and for how many nights) and the **conn
 - **🚆 Train connection** (solid blue): a concrete train, drawn **along the actual tracks**, with its trains, times and stops, whether **Interrail covers** each one (✓ covered, ✓ domestic only, ✕ not covered like Italo or Flixtrain, ? not on the list), and reservation needs.
 - Between two stops without a connection you'll see **"How do you get here?"**: tap **🧭 Rough plan** or **🚆 Find a train**.
 - **🚆 on a connection** opens the Trains tab for exactly that trip: from that station, on that day, with the stations near your next stop listed first. Tap **Use** and the connection becomes that train.
-- **✏️ on a connection:** night train (arrives the next day), ticket or reservation **price**, notes, swap the direction.
+- **✏️ on a connection:** departure date (optional, see fixed dates above), night train (arrives the next day), ticket or reservation **price**, notes, swap the direction.
 - **〰️ Draw a connection on the map:** tap a start and a destination (a pin, a station dot, a town or any point). Station to station becomes a train connection.
 
 ### Places and People

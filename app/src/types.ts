@@ -94,6 +94,8 @@ export interface TravelLine {
   notes: string
   /** Position in the trip, shared with the stops */
   order?: number
+  /** Departure date fixed by you (a booked train); null = the day the stop before ends */
+  fixedDate?: string | null
   /** Arrives the day after it leaves (night train) */
   overnight?: boolean
   /** Planned ticket / reservation price in EUR */

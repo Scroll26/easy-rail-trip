@@ -1,13 +1,15 @@
 import { currentRoute, LINE_KINDS, lineTitle } from '../lines'
 import RouteLegs from './RouteLegs'
 import PriceField from './PriceField'
+import GapNotice from './GapNotice'
 import { formatDay, today } from '../dates'
 import { deleteLine, saveLine } from '../store'
-import type { LineEntry, Lookup } from '../trip'
+import type { LineEntry, Lookup, Trip } from '../trip'
 import type { TravelLine } from '../types'
 
 interface Props {
   line: TravelLine
+  trip: Trip
   /** Its place in the trip, with the dates */
   entry: LineEntry | undefined
   lookup: Lookup
@@ -18,7 +20,7 @@ interface Props {
 }
 
 /** A connection of the trip: a concrete train, or a general plan of where to go next */
-export default function LineEditor({ line, entry, lookup, routeFailed, onClose, onFindTrains }: Props) {
+export default function LineEditor({ line, trip, entry, lookup, routeFailed, onClose, onFindTrains }: Props) {
   const set = (patch: Partial<TravelLine>) => saveLine({ ...line, ...patch })
   const route = currentRoute(line, lookup)
   const title = lineTitle(line, lookup)
@@ -30,11 +32,29 @@ export default function LineEditor({ line, entry, lookup, routeFailed, onClose, 
       </div>
       <h3 className="line-title">{title}</h3>
       {entry && (
-        <p className="small line-date">
-          📅 Leaves {formatDay(entry.date)}
-          {entry.arrive !== entry.date ? `, arrives ${formatDay(entry.arrive)}` : ''}
-          <span className="muted"> · set by the stops before it</span>
-        </p>
+        <>
+          <div className="row two">
+            <label className="field">
+              <span>Leaves{line.fixedDate ? ' (fixed)' : ''}</span>
+              <input type="date" value={entry.date} onChange={(e) => e.target.value && set({ fixedDate: e.target.value })} />
+            </label>
+            <div className="field">
+              <span>Arrives</span>
+              <span className="date-text">{formatDay(entry.arrive)}</span>
+            </div>
+          </div>
+          {line.fixedDate ? (
+            <p className="muted small">
+              Fixed: the stops after it follow from this date.{' '}
+              <button className="ghost link-btn inline" onClick={() => set({ fixedDate: null })}>
+                Leave when the stop before ends instead
+              </button>
+            </p>
+          ) : (
+            <p className="muted small">Leaves when the stop before ends. Pick a date to fix it (e.g. a booked train).</p>
+          )}
+          <GapNotice trip={trip} id={entry.id} gap={entry.gap} lookup={lookup} />
+        </>
       )}
       <label className="check">
         <input type="checkbox" checked={!!line.overnight} onChange={(e) => set({ overnight: e.target.checked })} />

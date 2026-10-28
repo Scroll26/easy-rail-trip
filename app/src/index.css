@@ -372,7 +372,9 @@ textarea { resize: vertical; }
 .day-select { flex: none; width: auto; max-width: 128px; padding: 6px; font-size: 13px; }
 .price-paid { justify-content: space-between; }
 .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
-.line-date { margin: -6px 0 0; }
+.date-text { padding: 9px 0; }
+.gap-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.gap-notice .small-btn { border-radius: 999px; }
 
 .drag-handle {
   flex: none;
