@@ -1,6 +1,6 @@
-import { Fragment } from 'react'
+import { Fragment, useEffect, useRef } from 'react'
 import { coverage, COVERAGE_LABEL } from '../data/interrailOperators'
-import { legSummary, timeOf, type RouteFocus } from '../lines'
+import { legFocus, legSummary, sectionColor, timeOf, type RouteFocus } from '../lines'
 import { formatMinutes } from '../rail/transitous'
 import type { RouteLeg } from '../types'
 
@@ -17,6 +17,11 @@ interface Props {
 export default function RouteLegs({ legs, focused, onFocus }: Props) {
   const summary = legSummary(legs)
   const toggle = (f: RouteFocus) => onFocus(focused === f.key ? null : f)
+  // A train picked on the map scrolls into view
+  const listRef = useRef<HTMLOListElement>(null)
+  useEffect(() => {
+    listRef.current?.querySelector('.leg-card.active')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [focused])
 
   const station = (key: string, name: string, at: [number, number] | undefined, time?: string, end = false) => (
     <button
@@ -35,7 +40,7 @@ export default function RouteLegs({ legs, focused, onFocus }: Props) {
       <p className={'coverage-summary ' + summary.tone}>
         {summary.icon} {summary.text}
       </p>
-      <ol className="route-legs">
+      <ol className="route-legs" ref={listRef}>
         {legs.map((l, i) => {
           const c = COVERAGE_LABEL[coverage(l.agency, l.mode)]
           const ride = minutes(l.departure, l.arrival)
@@ -51,20 +56,14 @@ export default function RouteLegs({ legs, focused, onFocus }: Props) {
                   {prev.to !== l.from ? ` · ${prev.to} → ${l.from}` : ''}
                 </li>
               )}
-              <li className={'leg-card' + (focused === key || focused?.startsWith(`st:${i}:`) ? ' active' : '')}>
+              <li
+                className={'leg-card' + (focused === key || focused?.startsWith(`st:${i}:`) ? ' active' : '')}
+                style={{ '--leg-color': sectionColor(i) } as React.CSSProperties}
+              >
                 <button
                   className="leg-main"
                   disabled={!l.path?.length}
-                  onClick={() =>
-                    toggle({
-                      key,
-                      path: l.path,
-                      points: [
-                        { at: l.fromAt!, name: l.from },
-                        { at: l.toAt!, name: l.to },
-                      ].filter((p) => p.at),
-                    })
-                  }
+                  onClick={() => toggle(legFocus(l, i))}
                   title="Show this train on the map"
                 >
                   <span className="leg-head">

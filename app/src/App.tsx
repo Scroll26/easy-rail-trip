@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import MapView, { type PickHit } from './components/MapView'
 import LineEditor from './components/LineEditor'
-import { avoidOf, currentRoute, drawnLines, resolveEndpoint, routeKey, type RouteFocus } from './lines'
+import { avoidOf, currentRoute, drawnLines, legFocus, resolveEndpoint, routeKey, type RouteFocus } from './lines'
 import { railRoute } from './rail/route'
 import PlaceEditor from './components/PlaceEditor'
 import PersonEditor from './components/PersonEditor'
@@ -410,6 +410,14 @@ export default function App() {
     setSheetOpen(true)
   }
 
+  /** Fit the map to a path, keeping it clear of the half-open list on the phone */
+  function fitPath(path: [number, number][], maxZoom: number) {
+    const map = mapRef.current
+    if (!map || !path.length) return
+    const padding = isPhone() ? { top: 70, left: 40, right: 40, bottom: window.innerHeight * 0.5 + 30 } : 80
+    map.fitBounds(path.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(path[0], path[0])), { padding, maxZoom })
+  }
+
   function addPlaceToStop(placeId: string, stopId: string) {
     const now = Date.now()
     saveActivity({
@@ -652,6 +660,8 @@ export default function App() {
 
   const editedStop = editingStop ? tripStops(trip).find((s) => s.id === editingStop) : undefined
   const editedLine = editingLine ? lines.find((l) => l.id === editingLine) : undefined
+  // Its trains, drawn one by one on the map while it's open
+  const sections = (editedLine && currentRoute(editedLine, lookup)?.legs) || null
 
   function editLine(id: string) {
     setSelection(null)
@@ -662,6 +672,12 @@ export default function App() {
     setTripHighlight(id)
     setTab('trip')
     setSheetOpen(true)
+    // The whole connection in view, its trains drawn one by one
+    const line = lines.find((l) => l.id === id)
+    if (!line) return
+    const a = resolveEndpoint(line.from, lookup)
+    const b = resolveEndpoint(line.to, lookup)
+    fitPath([[a.lng, a.lat], ...(currentRoute(line, lookup)?.path ?? []), [b.lng, b.lat]], 11)
   }
 
   /** Highlight a train or station of the open connection and bring it into view */
@@ -672,11 +688,8 @@ export default function App() {
     // On the phone the list stays open at half height, so keep the map part above it clear
     const phone = isPhone()
     if (phone && sheet.state === 'full') sheet.setState('half')
-    const padding = phone ? { top: 70, left: 40, right: 40, bottom: window.innerHeight * 0.5 + 30 } : 80
-    if (f.path?.length) {
-      const bounds = f.path.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(f.path[0], f.path[0]))
-      map.fitBounds(bounds, { padding, maxZoom: 13 })
-    } else if (f.points.length) map.easeTo({ center: f.points[0].at, zoom: Math.max(12, map.getZoom()), offset: [0, phone ? -window.innerHeight * 0.25 : 0] })
+    if (f.path?.length) fitPath(f.path, 13)
+    else if (f.points.length) map.easeTo({ center: f.points[0].at, zoom: Math.max(12, map.getZoom()), offset: [0, phone ? -window.innerHeight * 0.25 : 0] })
   }
 
   function showLine(line: TravelLine) {
@@ -933,6 +946,11 @@ export default function App() {
         travel={travel}
         lineHighlight={lineHighlight}
         routeFocus={editedLine ? routeFocus : null}
+        sections={sections}
+        onSectionClick={(i) => {
+          const leg = sections?.[i]
+          if (leg) focusRoute(routeFocus?.key === `leg:${i}` ? null : legFocus(leg, i))
+        }}
         linePopup={linePopup}
         onEditLine={editLine}
       />

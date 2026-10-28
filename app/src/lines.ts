@@ -39,7 +39,23 @@ export interface RouteFocus {
   points: { at: [number, number]; name: string }[]
 }
 
-export const timeOf =(iso?: string) =>
+/** Colours of the trains of an open connection, in turn (on the map and their cards) */
+export const SECTION_COLORS = ['#1d4ed8', '#111827', '#7c3aed', '#0e7490']
+export const sectionColor = (i: number) => SECTION_COLORS[i % SECTION_COLORS.length]
+
+/** Highlight for one train of a connection: its track and both end stations */
+export function legFocus(leg: RouteLeg, i: number): RouteFocus {
+  return {
+    key: `leg:${i}`,
+    path: leg.path,
+    points: [
+      { at: leg.fromAt!, name: leg.from },
+      { at: leg.toAt!, name: leg.to },
+    ].filter((p) => p.at),
+  }
+}
+
+export const timeOf = (iso?: string) =>
   iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
 
 /** Is the whole connection covered by the Interrail pass? */

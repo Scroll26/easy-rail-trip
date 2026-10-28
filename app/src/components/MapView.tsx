@@ -8,10 +8,10 @@ import { COUNTRY_CURRENCY, CURRENCY_STYLE, NO_CURRENCY_LABEL } from '../data/cur
 import { formatRate, type Rates } from '../rates'
 import { findStation, formatMinutes, type DirectResult } from '../rail/transitous'
 import { RAIL_TYPE, RAIL_TYPES } from '../data/railTypes'
-import { legSummary, LINE_KINDS, timeOf, type DrawnLine, type RouteFocus } from '../lines'
+import { legSummary, LINE_KINDS, sectionColor, timeOf, type DrawnLine, type RouteFocus } from '../lines'
 import { coverage, COVERAGE_LABEL } from '../data/interrailOperators'
 import { FERRIES, FERRY_INFO_URL, FERRY_STYLE } from '../data/ferries'
-import { NO_GROUP, type Group, type Person, type Place, type PlaceCategory, type Selection, type Settings } from '../types'
+import { NO_GROUP, type Group, type Person, type Place, type PlaceCategory, type RouteLeg, type Selection, type Settings } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const VIEW_KEY = 'rail-planner:view'
@@ -43,6 +43,9 @@ interface Props {
   lineHighlight: string | null
   /** A train or station of the open connection */
   routeFocus: RouteFocus | null
+  /** The trains of the open connection, drawn as separate sections */
+  sections: RouteLeg[] | null
+  onSectionClick: (i: number) => void
   /** Open a line's popup (e.g. when it was tapped in the list); `n` changes on every request */
   linePopup: { id: string; n: number } | null
   onEditLine: (id: string) => void
@@ -67,6 +70,24 @@ const travelGeoJson = (lines: DrawnLine[]): GeoJSON.FeatureCollection => ({
 
 // A picked train / station of a connection: pink (unlike any railway colour), above everything of the trip
 const FOCUS_COLOR = '#db2777'
+
+// Each train of the open connection in its own colour, with the stations where you change
+const sectionsGeoJson = (legs: RouteLeg[] | null): GeoJSON.FeatureCollection => {
+  const stations = new Map<string, [number, number]>()
+  for (const l of legs ?? []) {
+    if (l.fromAt) stations.set(l.from, l.fromAt)
+    if (l.toAt) stations.set(l.to, l.toAt)
+  }
+  return {
+    type: 'FeatureCollection',
+    features: [
+      ...(legs ?? []).flatMap((l, i): GeoJSON.Feature[] =>
+        l.path?.length ? [{ type: 'Feature', properties: { i, color: sectionColor(i) }, geometry: { type: 'LineString', coordinates: l.path } }] : [],
+      ),
+      ...[...stations].map(([name, at]): GeoJSON.Feature => ({ type: 'Feature', properties: { name }, geometry: { type: 'Point', coordinates: at } })),
+    ],
+  }
+}
 
 const focusGeoJson = (f: RouteFocus | null): GeoJSON.FeatureCollection => ({
   type: 'FeatureCollection',
@@ -259,7 +280,7 @@ const RAIL_WIDTH: maplibregl.ExpressionSpecification = [
 ]
 
 // Our own text layers: never hidden by the "map text" setting
-const OWN_SYMBOL_LAYERS = new Set(['cur-labels', 'travel-arrows', 'route-focus-labels'])
+const OWN_SYMBOL_LAYERS = new Set(['cur-labels', 'travel-arrows', 'route-focus-labels', 'route-sections-labels'])
 
 // One colour per currency zone
 const CURRENCY_FILL = [
@@ -338,6 +359,8 @@ export default function MapView({
   travel,
   lineHighlight,
   routeFocus,
+  sections,
+  onSectionClick,
   linePopup,
   onEditLine,
 }: Props) {
@@ -347,8 +370,8 @@ export default function MapView({
   const currencyRef = useRef(currencyData)
   currencyRef.current = currencyData
   // Latest values for map event handlers registered once
-  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect })
-  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect }
+  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect, onSectionClick })
+  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect, onSectionClick }
   const showLinePopupRef = useRef<
     ((p: { id: string; kind: 'train' | 'plan'; title: string }, at: maplibregl.LngLatLike) => void) | null
   >(null)
@@ -358,6 +381,8 @@ export default function MapView({
   reachRef.current = reach
   const routeFocusRef = useRef(routeFocus)
   routeFocusRef.current = routeFocus
+  const sectionsRef = useRef(sections)
+  sectionsRef.current = sections
 
   useEffect(() => {
     const view = loadView()
@@ -369,6 +394,8 @@ export default function MapView({
       attributionControl: { compact: true },
     })
     mapRef.current = map
+    // For browser tests during development
+    if (import.meta.env.DEV) (window as unknown as { __map: maplibregl.Map }).__map = map
     // The compass needle always points north; tapping it turns the map back to north
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right')
     map.addControl(
@@ -634,6 +661,40 @@ export default function MapView({
         },
       })
 
+      // The open connection, train by train
+      map.addSource('route-sections', { type: 'geojson', data: sectionsGeoJson(sectionsRef.current) })
+      map.addLayer({
+        id: 'route-sections-casing',
+        type: 'line',
+        source: 'route-sections',
+        filter: IS_LINE,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-width': 9 },
+      })
+      map.addLayer({
+        id: 'route-sections',
+        type: 'line',
+        source: 'route-sections',
+        filter: IS_LINE,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 5 },
+      })
+      map.addLayer({
+        id: 'route-sections-stations',
+        type: 'circle',
+        source: 'route-sections',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: { 'circle-radius': 5, 'circle-color': '#ffffff', 'circle-stroke-width': 3, 'circle-stroke-color': '#0f172a' },
+      })
+      map.addLayer({
+        id: 'route-sections-labels',
+        type: 'symbol',
+        source: 'route-sections',
+        filter: ['==', ['geometry-type'], 'Point'],
+        layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-offset': [0, 0.9], 'text-anchor': 'top' },
+        paint: { 'text-color': '#0f172a', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+      })
+
       // The train or station picked in an open connection
       map.addSource('route-focus', { type: 'geojson', data: focusGeoJson(routeFocusRef.current) })
       map.addLayer({
@@ -728,7 +789,7 @@ export default function MapView({
         paint: { 'circle-radius': 9, 'circle-color': '#0f172a', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 },
       })
 
-      for (const id of ['reach-dots', 'ferry-included', 'ferry-discount', 'travel-train', 'travel-plan', ...ORM_STATION_LAYERS]) {
+      for (const id of ['route-sections', 'reach-dots', 'ferry-included', 'ferry-discount', 'travel-train', 'travel-plan', ...ORM_STATION_LAYERS]) {
         map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'))
         map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''))
       }
@@ -788,6 +849,12 @@ export default function MapView({
         } else onPick(e.lngLat.lat, e.lngLat.lng)
         return
       }
+      // A train of the open connection (which stays open)
+      const sectionHit = hit(['route-sections'])
+      if (sectionHit) {
+        latest.current.onSectionClick(Number(sectionHit.properties.i))
+        return
+      }
       onSelect(null)
 
       // Most specific first: a direct-train result, a railway station, then any map label
@@ -800,7 +867,11 @@ export default function MapView({
         )
         return
       }
-      const stationHit = hit(ORM_STATION_LAYERS)
+      // A station right on one of your connections only wins when tapped spot on
+      const lineHit = hit(['travel-train', 'travel-plan'])
+      const exact = (layers: string[]) =>
+        map.queryRenderedFeatures([x, y], { layers: layers.filter((id) => map.getLayer(id)) })[0]
+      const stationHit = lineHit ? exact(ORM_STATION_LAYERS) : hit(ORM_STATION_LAYERS)
       if (stationHit) {
         showStationPopup(
           String(stationHit.properties.name || stationHit.properties.label || ''),
@@ -808,9 +879,9 @@ export default function MapView({
         )
         return
       }
-      const lineHit = hit(['travel-train', 'travel-plan'])
       if (lineHit) {
-        showLinePopup(lineHit.properties as { id: string; kind: 'train' | 'plan'; title: string }, e.lngLat)
+        // Opens the connection in the Trip tab, with its trains
+        latest.current.onEditLine(String(lineHit.properties.id))
         return
       }
       const ferryHit = hit(['ferry-included', 'ferry-discount'])
@@ -1044,6 +1115,11 @@ export default function MapView({
     document.querySelectorAll('.maplibregl-popup').forEach((p) => p.remove())
     showLinePopupRef.current?.({ id: line.id, kind: line.kind, title: line.title }, mid)
   }, [linePopup])
+
+  useEffect(() => {
+    const source = mapRef.current?.getSource('route-sections') as maplibregl.GeoJSONSource | undefined
+    source?.setData(sectionsGeoJson(sections))
+  }, [sections, mapRef])
 
   useEffect(() => {
     const source = mapRef.current?.getSource('route-focus') as maplibregl.GeoJSONSource | undefined
