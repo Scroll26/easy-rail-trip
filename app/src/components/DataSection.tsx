@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { deleteEverywhere, deleteLocalData, isSyncOn, useSyncState } from '../sync/sync'
 
 const MAP_CACHES = ['basemap', 'railways']
@@ -82,45 +83,48 @@ export default function DataSection({ onExport }: { onExport: () => void }) {
         </div>
       </div>
 
-      {pending && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-title">
-          <div className="modal">
-            <h3 id="delete-title">Are you sure?</h3>
-            {pending === 'device' ? (
-              <>
-                <p>
-                  This deletes <b>all places, people, groups, travel lines, timeline and budget</b> on this device, plus
-                  its settings and saved lookups.
-                </p>
-                <p className={'recover ' + (syncOn ? 'yes' : 'no')}>
-                  {syncOn
-                    ? '↩ Recoverable: your trip stays in your Google Drive. Sync on this device is switched off; connect it again to get everything back.'
-                    : '⚠ Not recoverable, unless you have exported a backup file (you can import it again).'}
-                </p>
-              </>
-            ) : (
-              <>
-                <p>
-                  This deletes your trip from <b>this device and from your Google Drive</b>, and switches sync off.
-                </p>
-                <p className="recover no">
-                  ⚠ Not recoverable, unless you have exported a backup file. Other devices that are still connected keep
-                  their own copy and would upload it again: delete it there too, or disconnect them first.
-                </p>
-              </>
-            )}
-            {error && <p className="error-text small">{error}</p>}
-            <div className="row modal-actions">
-              <button onClick={onExport} disabled={busy}>⬇ Export a backup first</button>
-              <span className="spacer" />
-              <button onClick={() => setPending(null)} disabled={busy}>Cancel</button>
-              <button className="danger solid" onClick={confirmDelete} disabled={busy}>
-                {busy ? 'Deleting…' : 'Yes, delete'}
-              </button>
+      {/* Rendered at the page level: the panel it's opened from may be slid down */}
+      {pending &&
+        createPortal(
+          <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+            <div className="modal">
+              <h3 id="delete-title">Are you sure?</h3>
+              {pending === 'device' ? (
+                <>
+                  <p>
+                    This deletes <b>all places, people, groups, travel lines, timeline and budget</b> on this device, plus
+                    its settings and saved lookups.
+                  </p>
+                  <p className={'recover ' + (syncOn ? 'yes' : 'no')}>
+                    {syncOn
+                      ? '↩ Recoverable: your trip stays in your Google Drive. Sync on this device is switched off; connect it again to get everything back.'
+                      : '⚠ Not recoverable, unless you have exported a backup file (you can import it again).'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    This deletes your trip from <b>this device and from your Google Drive</b>, and switches sync off.
+                  </p>
+                  <p className="recover no">
+                    ⚠ Not recoverable, unless you have exported a backup file. Other devices that are still connected keep
+                    their own copy and would upload it again: delete it there too, or disconnect them first.
+                  </p>
+                </>
+              )}
+              {error && <p className="error-text small">{error}</p>}
+              <div className="row modal-actions">
+                <button onClick={onExport} disabled={busy}>⬇ Export a backup first</button>
+                <span className="spacer" />
+                <button onClick={() => setPending(null)} disabled={busy}>Cancel</button>
+                <button className="danger solid" onClick={confirmDelete} disabled={busy}>
+                  {busy ? 'Deleting…' : 'Yes, delete'}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </section>
   )
 }

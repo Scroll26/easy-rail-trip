@@ -24,6 +24,12 @@ interface Props {
 
 export default function MapToolbar({ settings, groups, ratesNote }: Props) {
   const [menu, setMenu] = useState<'place' | 'person' | 'map' | null>(null)
+  // On phones the menus span the screen just below the (wrapping) toolbar
+  const [menuTop, setMenuTop] = useState(0)
+  useEffect(() => {
+    if (menu && ref.current) setMenuTop(Math.round(ref.current.getBoundingClientRect().bottom + 6))
+  }, [menu])
+  const menuStyle = { '--menu-top': `${menuTop}px` } as React.CSSProperties
   const ref = useRef<HTMLDivElement>(null)
 
   // Close the menu on any click outside the toolbar
@@ -66,7 +72,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
           ▾
         </button>
         {menu === kind && (
-          <div className="menu">
+          <div className="menu" style={menuStyle}>
             <label className="check">
               <input
                 type="checkbox"
@@ -164,7 +170,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
           ▾
         </button>
         {menu === 'map' && (
-          <div className="menu menu-right map-menu">
+          <div className="menu menu-right map-menu" style={menuStyle}>
             {settings.simpleView && (
               <p className="simple-note">
                 ✨ Simple view is on, so these settings are paused.{' '}
