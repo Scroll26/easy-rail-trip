@@ -8,7 +8,7 @@ import { COUNTRY_CURRENCY, CURRENCY_STYLE, NO_CURRENCY_LABEL } from '../data/cur
 import { formatRate, type Rates } from '../rates'
 import { findStation, formatMinutes, type DirectResult } from '../rail/transitous'
 import { RAIL_TYPE, RAIL_TYPES } from '../data/railTypes'
-import { legSummary, LINE_KINDS, timeOf, type DrawnLine } from '../lines'
+import { legSummary, LINE_KINDS, timeOf, type DrawnLine, type RouteFocus } from '../lines'
 import { coverage, COVERAGE_LABEL } from '../data/interrailOperators'
 import { FERRIES, FERRY_INFO_URL, FERRY_STYLE } from '../data/ferries'
 import { NO_GROUP, type Group, type Person, type Place, type PlaceCategory, type Selection, type Settings } from '../types'
@@ -41,6 +41,8 @@ interface Props {
   onReachSelect: (stopId: string) => void
   travel: DrawnLine[]
   lineHighlight: string | null
+  /** A train or station of the open connection */
+  routeFocus: RouteFocus | null
   /** Open a line's popup (e.g. when it was tapped in the list); `n` changes on every request */
   linePopup: { id: string; n: number } | null
   onEditLine: (id: string) => void
@@ -61,6 +63,17 @@ const travelGeoJson = (lines: DrawnLine[]): GeoJSON.FeatureCollection => ({
     // End dots, so lines to a free point don't just stop in the void
     ...[l.coords[0], l.coords[l.coords.length - 1]].map((c): GeoJSON.Feature => ({ type: 'Feature', properties: { kind: l.kind }, geometry: { type: 'Point', coordinates: c } })),
   ]),
+})
+
+// A picked train / station of a connection: pink (unlike any railway colour), above everything of the trip
+const FOCUS_COLOR = '#db2777'
+
+const focusGeoJson = (f: RouteFocus | null): GeoJSON.FeatureCollection => ({
+  type: 'FeatureCollection',
+  features: [
+    ...(f?.path?.length ? [{ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: f.path } }] : []),
+    ...(f?.points ?? []).map((p) => ({ type: 'Feature' as const, properties: { name: p.name }, geometry: { type: 'Point' as const, coordinates: p.at } })),
+  ],
 })
 
 const ferriesGeoJson: GeoJSON.FeatureCollection = {
@@ -246,7 +259,7 @@ const RAIL_WIDTH: maplibregl.ExpressionSpecification = [
 ]
 
 // Our own text layers: never hidden by the "map text" setting
-const OWN_SYMBOL_LAYERS = new Set(['cur-labels', 'travel-arrows'])
+const OWN_SYMBOL_LAYERS = new Set(['cur-labels', 'travel-arrows', 'route-focus-labels'])
 
 // One colour per currency zone
 const CURRENCY_FILL = [
@@ -324,6 +337,7 @@ export default function MapView({
   onReachSelect,
   travel,
   lineHighlight,
+  routeFocus,
   linePopup,
   onEditLine,
 }: Props) {
@@ -342,6 +356,8 @@ export default function MapView({
   travelRef.current = travel
   const reachRef = useRef(reach)
   reachRef.current = reach
+  const routeFocusRef = useRef(routeFocus)
+  routeFocusRef.current = routeFocus
 
   useEffect(() => {
     const view = loadView()
@@ -616,6 +632,47 @@ export default function MapView({
           'text-halo-color': '#ffffff',
           'text-halo-width': 1.5,
         },
+      })
+
+      // The train or station picked in an open connection
+      map.addSource('route-focus', { type: 'geojson', data: focusGeoJson(routeFocusRef.current) })
+      map.addLayer({
+        id: 'route-focus-casing',
+        type: 'line',
+        source: 'route-focus',
+        filter: IS_LINE,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-width': 11 },
+      })
+      map.addLayer({
+        id: 'route-focus-line',
+        type: 'line',
+        source: 'route-focus',
+        filter: IS_LINE,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': FOCUS_COLOR, 'line-width': 6 },
+      })
+      map.addLayer({
+        id: 'route-focus-points',
+        type: 'circle',
+        source: 'route-focus',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: { 'circle-radius': 7, 'circle-color': '#ffffff', 'circle-stroke-width': 4, 'circle-stroke-color': FOCUS_COLOR },
+      })
+      map.addLayer({
+        id: 'route-focus-labels',
+        type: 'symbol',
+        source: 'route-focus',
+        filter: ['==', ['geometry-type'], 'Point'],
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 13,
+          'text-offset': [0, 1.1],
+          'text-anchor': 'top',
+          'text-allow-overlap': true,
+        },
+        paint: { 'text-color': '#831843', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
       })
 
       // Direct trains: a light veil over everything else so the destinations stand out
@@ -987,6 +1044,11 @@ export default function MapView({
     document.querySelectorAll('.maplibregl-popup').forEach((p) => p.remove())
     showLinePopupRef.current?.({ id: line.id, kind: line.kind, title: line.title }, mid)
   }, [linePopup])
+
+  useEffect(() => {
+    const source = mapRef.current?.getSource('route-focus') as maplibregl.GeoJSONSource | undefined
+    source?.setData(focusGeoJson(routeFocus))
+  }, [routeFocus, mapRef])
 
   useEffect(() => {
     const map = mapRef.current

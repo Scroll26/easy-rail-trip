@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import MapView, { type PickHit } from './components/MapView'
 import LineEditor from './components/LineEditor'
-import { avoidOf, currentRoute, drawnLines, resolveEndpoint, routeKey } from './lines'
+import { avoidOf, currentRoute, drawnLines, resolveEndpoint, routeKey, type RouteFocus } from './lines'
 import { railRoute } from './rail/route'
 import PlaceEditor from './components/PlaceEditor'
 import PersonEditor from './components/PersonEditor'
@@ -118,6 +118,8 @@ export default function App() {
   const [focusStop, setFocusStop] = useState<string | null>(null)
   const [placesView, setPlacesView] = useState<'places' | 'people'>('places')
   const [editingLine, setEditingLine] = useState<string | null>(null)
+  // A train or station of the open connection, highlighted on the map
+  const [routeFocus, setRouteFocus] = useState<RouteFocus | null>(null)
   const [lineHighlight, setLineHighlight] = useState<string | null>(null)
   const [linePopup, setLinePopup] = useState<{ id: string; n: number } | null>(null)
   // Direct trains
@@ -655,10 +657,26 @@ export default function App() {
     setSelection(null)
     setEditingStop(null)
     setEditingLine(id)
+    setRouteFocus(null)
     setLineHighlight(id)
     setTripHighlight(id)
     setTab('trip')
     setSheetOpen(true)
+  }
+
+  /** Highlight a train or station of the open connection and bring it into view */
+  function focusRoute(f: RouteFocus | null) {
+    setRouteFocus(f)
+    const map = mapRef.current
+    if (!f || !map) return
+    // On the phone the list stays open at half height, so keep the map part above it clear
+    const phone = isPhone()
+    if (phone && sheet.state === 'full') sheet.setState('half')
+    const padding = phone ? { top: 70, left: 40, right: 40, bottom: window.innerHeight * 0.5 + 30 } : 80
+    if (f.path?.length) {
+      const bounds = f.path.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(f.path[0], f.path[0]))
+      map.fitBounds(bounds, { padding, maxZoom: 13 })
+    } else if (f.points.length) map.easeTo({ center: f.points[0].at, zoom: Math.max(12, map.getZoom()), offset: [0, phone ? -window.innerHeight * 0.25 : 0] })
   }
 
   function showLine(line: TravelLine) {
@@ -686,7 +704,12 @@ export default function App() {
         entry={tripLines(trip).find((l) => l.id === editedLine.id)}
         lookup={lookup}
         routeFailed={routeFailed.has(editedLine.id) && !routing.has(editedLine.id)}
-        onClose={() => setEditingLine(null)}
+        onClose={() => {
+          setEditingLine(null)
+          setRouteFocus(null)
+        }}
+        routeFocus={routeFocus}
+        onRouteFocus={focusRoute}
         onFindTrains={() => {
           const i = trip.entries.findIndex((e) => e.id === editedLine.id)
           const prev = trip.entries[i - 1]
@@ -909,6 +932,7 @@ export default function App() {
         }}
         travel={travel}
         lineHighlight={lineHighlight}
+        routeFocus={editedLine ? routeFocus : null}
         linePopup={linePopup}
         onEditLine={editLine}
       />

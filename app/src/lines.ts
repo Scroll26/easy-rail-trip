@@ -31,7 +31,15 @@ export interface DrawnLine {
   legs?: RouteLeg[]
 }
 
-export const timeOf = (iso?: string) =>
+/** A train or station of a connection, highlighted on the map */
+export interface RouteFocus {
+  key: string
+  path?: [number, number][]
+  /** Stations to mark, with their names */
+  points: { at: [number, number]; name: string }[]
+}
+
+export const timeOf =(iso?: string) =>
   iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
 
 /** Is the whole connection covered by the Interrail pass? */

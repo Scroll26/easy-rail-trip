@@ -665,6 +665,25 @@ button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 .route-legs-view p { margin: 0; }
 .route-legs > li { margin-bottom: 6px; }
 .leg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* Connection editor: one card per train, the changes in between */
+.route-legs-view .route-legs { padding: 0; list-style: none; gap: 0; }
+.route-legs-view .route-legs > li { margin: 0; }
+.leg-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.leg-card.active { border-color: #db2777; box-shadow: 0 0 0 1px #db2777; }
+.leg-main { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; text-align: left; border: 0; border-radius: 0; background: transparent; padding: 8px 10px; }
+.leg-main:hover:not(:disabled) { background: var(--bg-2); }
+.leg-stations { display: flex; flex-direction: column; padding: 0 6px 6px; }
+.leg-stations details { padding-left: 0; }
+.leg-stations summary { padding: 2px 0 2px 60px; cursor: pointer; }
+.leg-station { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: transparent; padding: 3px 4px; min-height: 0; font-size: 13px; border-radius: 6px; }
+.leg-station:hover:not(:disabled) { background: var(--bg-2); }
+.leg-station.end { font-weight: 600; }
+.leg-station.active { background: #fce7f3; color: #831843; }
+.leg-time { width: 40px; flex: none; font-variant-numeric: tabular-nums; color: var(--muted); }
+.leg-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; border: 2px solid #2563eb; background: var(--bg); }
+.leg-station.end .leg-dot { background: #2563eb; }
+.leg-station.active .leg-dot { border-color: #db2777; background: #db2777; }
+.leg-change { padding: 6px 10px 6px 22px; border-left: 2px dashed var(--border); margin-left: 16px !important; }
 .coverage-summary { font-weight: 600; font-size: 13px; }
 .coverage-summary.good, .cov-badge.good { color: #15803d; }
 .coverage-summary.warn, .cov-badge.warn { color: #b45309; }
@@ -678,6 +697,7 @@ details summary { cursor: pointer; color: var(--accent); }
   .coverage-summary.good, .cov-badge.good { color: #4ade80; }
   .coverage-summary.warn, .cov-badge.warn { color: #fbbf24; }
   .coverage-summary.bad, .cov-badge.bad { color: #f87171; }
+  .leg-station.active { background: #500724; color: #fbcfe8; }
 }
 
 .ferry-swatch { flex: none; width: 22px; height: 0; margin-top: 9px; border-top: 3px dashed; }

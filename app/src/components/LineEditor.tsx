@@ -1,4 +1,4 @@
-import { avoidedOnRoute, avoidOf, currentRoute, LINE_KINDS, lineTitle } from '../lines'
+import { avoidedOnRoute, avoidOf, currentRoute, LINE_KINDS, lineTitle, type RouteFocus } from '../lines'
 import { countryNames, useCountries } from '../countries'
 import AvoidCountries from './AvoidCountries'
 import RouteLegs from './RouteLegs'
@@ -19,10 +19,13 @@ interface Props {
   routeFailed: boolean
   onClose: () => void
   onFindTrains: () => void
+  /** The train or station highlighted on the map */
+  routeFocus: RouteFocus | null
+  onRouteFocus: (f: RouteFocus | null) => void
 }
 
 /** A connection of the trip: a concrete train, or a general plan of where to go next */
-export default function LineEditor({ line, trip, entry, lookup, routeFailed, onClose, onFindTrains }: Props) {
+export default function LineEditor({ line, trip, entry, lookup, routeFailed, onClose, onFindTrains, routeFocus, onRouteFocus }: Props) {
   const set = (patch: Partial<TravelLine>) => saveLine({ ...line, ...patch })
   const route = currentRoute(line, lookup)
   const title = lineTitle(line, lookup)
@@ -89,7 +92,7 @@ export default function LineEditor({ line, trip, entry, lookup, routeFailed, onC
         <div className="route-info">
           {route?.path ? (
             <>
-              <RouteLegs legs={route.legs} />
+              <RouteLegs legs={route.legs} focused={routeFocus?.key ?? null} onFocus={onRouteFocus} />
               {through.length > 1 && <span className="small muted">Through {through.map((iso) => names([iso])).join(' → ')}</span>}
               {stillIn.length > 0 ? (
                 <span className="small warn-text">⚠ Runs through {names(stillIn)}: no train route around it was found.</span>

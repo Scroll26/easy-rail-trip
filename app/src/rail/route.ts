@@ -10,7 +10,7 @@ const API = 'https://api.transitous.org/api'
 const MODES = 'HIGHSPEED_RAIL,LONG_DISTANCE,NIGHT_RAIL,REGIONAL_FAST_RAIL,REGIONAL_RAIL,RAIL,FERRY'
 
 /** Bump when RouteLeg gets new fields, so stored routes are looked up again */
-export const ROUTE_VERSION = 3
+export const ROUTE_VERSION = 4
 
 export interface RailRoute {
   path: [number, number][]
@@ -87,15 +87,15 @@ function typicalDeparture() {
 
 type Leg = {
   mode: string
-  from: { name: string }
-  to: { name: string }
+  from: { name: string; lat: number; lon: number }
+  to: { name: string; lat: number; lon: number }
   agencyName?: string
   displayName?: string
   routeShortName?: string
   tripShortName?: string
   startTime?: string
   endTime?: string
-  intermediateStops?: { name: string }[]
+  intermediateStops?: { name: string; lat: number; lon: number }[]
   reservation?: 'NONE' | 'COMPULSORY'
   legGeometry?: { points: string; precision: number }
 }
@@ -123,13 +123,19 @@ async function plan(from: Point, to: Point, extra: Record<string, string>) {
 
 const fullPath = (legs: Leg[]) => legs.flatMap((l) => decodePolyline(l.legGeometry!.points, l.legGeometry!.precision))
 
+const round = ([x, y]: [number, number]): [number, number] => [Math.round(x * 1e5) / 1e5, Math.round(y * 1e5) / 1e5]
+
 function toRoute(legs: Leg[], countries: string[]): RailRoute {
-  const path = simplify(fullPath(legs))
+  const paths = legs.map((l) => simplify(decodePolyline(l.legGeometry!.points, l.legGeometry!.precision)).map(round))
   return {
-    path: path.map(([x, y]) => [Math.round(x * 1e5) / 1e5, Math.round(y * 1e5) / 1e5] as [number, number]),
-    legs: legs.map((l) => ({
+    path: paths.flat(),
+    legs: legs.map((l, i) => ({
       from: l.from.name,
       to: l.to.name,
+      fromAt: round([l.from.lon, l.from.lat]),
+      toAt: round([l.to.lon, l.to.lat]),
+      path: paths[i],
+      stopsAt: (l.intermediateStops ?? []).map((s) => round([s.lon, s.lat])),
       agency: l.agencyName ?? '',
       mode: l.mode,
       name: l.displayName || l.routeShortName || l.tripShortName || '',

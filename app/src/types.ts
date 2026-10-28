@@ -82,6 +82,12 @@ export interface RouteLeg {
   arrival?: string
   /** Stops in between */
   stops?: string[]
+  /** [lng, lat] of the stations and stops in between (same order as `stops`) */
+  fromAt?: [number, number]
+  toAt?: [number, number]
+  stopsAt?: [number, number][]
+  /** This train's part of the route, [lng, lat] points */
+  path?: [number, number][]
   /** The data says a seat reservation is required */
   reservation?: boolean
 }
