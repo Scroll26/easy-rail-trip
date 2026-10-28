@@ -247,26 +247,27 @@ export default function App() {
     }
   }, [lines, lookup])
 
-  // Simple view: only pins + names, country names and travel lines
-  const mapSettings: Settings = useMemo(
-    () =>
-      settings.simpleView
-        ? {
-            ...settings,
-            interrailMode: 'off',
-            showRailways: false,
-            showStreets: false,
-            showCurrencies: false,
-            mapLabels: 'countries',
-            showPlaceLabels: true,
-            showPeopleLabels: true,
-            showTravelLines: true,
-            showFerriesIncluded: false,
-            showFerriesDiscount: false,
-          }
-        : settings,
-    [settings],
-  )
+  // View trip: a clean map with only what its options allow
+  const mapSettings: Settings = useMemo(() => {
+    if (!settings.simpleView) return settings
+    const v = settings.tripView
+    // Ferries switched off in the Map menu come back too, so "Ferries" shows something
+    const ferriesOff = !settings.showFerriesIncluded && !settings.showFerriesDiscount
+    return {
+      ...settings,
+      interrailMode: v.interrail ? (settings.interrailMode === 'off' ? 'highlight' : settings.interrailMode) : 'off',
+      showRailways: v.railways,
+      showStreets: v.streets,
+      showCurrencies: v.currencies,
+      mapLabels: v.mapLabels,
+      showPlaceLabels: v.pinNames,
+      showPeopleLabels: v.pinNames,
+      showTravelLines: v.connections,
+      showFerriesIncluded: v.ferries && (ferriesOff || settings.showFerriesIncluded),
+      showFerriesDiscount: v.ferries && (ferriesOff || settings.showFerriesDiscount),
+    }
+  }, [settings])
+  const hideReach = settings.simpleView && !settings.tripView.directTrains
 
   // Zoom to the focused stop
   useEffect(() => {
@@ -884,7 +885,7 @@ export default function App() {
           setTab('places')
           createPlace(lat, lng, name, category)
         }}
-        reach={trainsResult}
+        reach={hideReach ? null : trainsResult}
         reachHighlight={reachHighlight}
         onTrainsFrom={(name, lat, lng, isStation) => {
           setTrainsContext(null)

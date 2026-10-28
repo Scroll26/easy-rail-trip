@@ -964,7 +964,7 @@ export default function MapView({
   }, [reachHighlight, mapRef])
 
   // Fade the rest of the map while direct-train results are shown
-  const faded = !!reach && settings.reachFocus && !settings.simpleView
+  const faded = !!reach && settings.reachFocus
   useEffect(() => {
     const map = mapRef.current
     if (map?.getLayer('reach-veil')) map.setLayoutProperty('reach-veil', 'visibility', faded ? 'visible' : 'none')
@@ -1005,9 +1005,7 @@ export default function MapView({
     if (!map?.getLayer('travel-train')) return
     for (const id of ['travel-casing', 'travel-highlight', 'travel-train', 'travel-plan', 'travel-ends', 'travel-arrows'])
       map.setLayoutProperty(id, 'visibility', settings.showTravelLines ? 'visible' : 'none')
-    for (const id of ['reach-dots', 'reach-highlight', 'reach-origin'])
-      map.setLayoutProperty(id, 'visibility', settings.simpleView ? 'none' : 'visible')
-  }, [settings.showTravelLines, settings.simpleView, mapRef])
+  }, [settings.showTravelLines, mapRef])
 
   useEffect(() => {
     mapRef.current?.getCanvas().classList.toggle('picking', picking)

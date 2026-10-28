@@ -51,7 +51,7 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Trip*, *
 |---|---|
 | 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
 | 🗺️ **Map ▾** | **🎫 Interrail:** Highlight / Dim others / Off: which countries your pass covers (teal) · **🛤️ Railway lines** (on by default): switch each kind on or off (high-speed red, main lines orange, branch lines yellow, narrow gauge brown, other grey) and the station dots (tap one for its name) · **⛴️ Ferries:** ferries with an Interrail benefit, *included in the pass* (only Superfast Italy–Greece, it uses a travel day) and *discount with the pass* (Stena, Tallink Silja, Blue Star…), each switchable; tap a ferry for details · **⚙️ Other:** map text (All / Countries only / None), 🛣️ streets (off by default), 💱 currencies (colours each currency zone and shows what 1 € is worth there), 🎨 pins in group colours |
-| 🧳 **View trip** | One tap for a clean map: only your pins with names, country names and your connections. Tap again for everything else |
+| 🧳 **View trip ▾** | One tap for a clean map: by default only your pins with names, country names and your connections. Tap again for everything else. The **▾** menu sets what stays on while it's on (names, connections, Interrail countries, railway lines, ferries, streets, currencies, direct-train results, map text); *Reset to default* brings back the clean default |
 | **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
 | ◎ | Show where you are right now |
 

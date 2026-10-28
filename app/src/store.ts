@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { DEFAULT_INTERRAIL_COUNTRIES } from './data/interrail'
-import type { Activity, Expense, Group, Person, Place, Settings, Stop, TravelLine } from './types'
+import type { Activity, Expense, Group, Person, Place, Settings, Stop, TravelLine, TripViewOptions } from './types'
 
 // The whole trip lives in one Yjs document. Each device keeps a copy in IndexedDB;
 // later the same document is merged via Google Drive, so offline edits on several
@@ -26,6 +26,19 @@ void persistence.whenSynced.then(() =>
   }),
 )
 
+/** View trip by default: pins with names, your connections and country names only */
+export const DEFAULT_TRIP_VIEW: TripViewOptions = {
+  pinNames: true,
+  connections: true,
+  interrail: false,
+  railways: false,
+  ferries: false,
+  streets: false,
+  currencies: false,
+  directTrains: false,
+  mapLabels: 'countries',
+}
+
 const DEFAULT_SETTINGS: Settings = {
   interrailMode: 'highlight',
   interrailCountries: DEFAULT_INTERRAIL_COUNTRIES,
@@ -40,6 +53,7 @@ const DEFAULT_SETTINGS: Settings = {
   showFerriesDiscount: true,
   reachFocus: true,
   simpleView: false,
+  tripView: DEFAULT_TRIP_VIEW,
   tripStart: null,
   passDays: null,
   budgetDaily: 50,
@@ -87,7 +101,11 @@ const expensesStore = createMapStore(expenses, (m) =>
 const linesStore = createMapStore(lines, (m) => [...m.values()].sort((a, b) => listOrder(a) - listOrder(b)))
 const settingsStore = createMapStore(
   settings,
-  (m) => ({ ...DEFAULT_SETTINGS, ...Object.fromEntries(m.entries()) }) as Settings,
+  (m) => {
+    const s = { ...DEFAULT_SETTINGS, ...Object.fromEntries(m.entries()) } as Settings
+    // Options added later get their defaults
+    return { ...s, tripView: { ...DEFAULT_TRIP_VIEW, ...s.tripView } }
+  },
 )
 
 const byOrder = (a: { order: number }, b: { order: number }) => a.order - b.order

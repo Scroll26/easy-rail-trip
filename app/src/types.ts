@@ -135,6 +135,19 @@ export interface Expense {
 
 export type InterrailMode = 'highlight' | 'dim' | 'off'
 
+/** What stays on the map while "View trip" is on (everything else in the Map menu is paused) */
+export interface TripViewOptions {
+  pinNames: boolean
+  connections: boolean
+  interrail: boolean
+  railways: boolean
+  ferries: boolean
+  streets: boolean
+  currencies: boolean
+  directTrains: boolean
+  mapLabels: 'all' | 'countries' | 'none'
+}
+
 export interface Settings {
   interrailMode: InterrailMode
   /** ISO 3166-1 alpha-2 codes counted as Interrail countries */
@@ -151,8 +164,9 @@ export interface Settings {
   showFerriesDiscount: boolean
   /** Trains tab: fade everything else while direct-train results are shown */
   reachFocus: boolean
-  /** Clean map: only pins + names, country names and travel lines */
+  /** "View trip": a clean map showing only what `tripView` allows */
   simpleView: boolean
+  tripView: TripViewOptions
   /** First day of the trip (YYYY-MM-DD); null = the first fixed date, else today */
   tripStart: string | null
   /** Travel days of a flexi pass; null = continuous pass or not set */

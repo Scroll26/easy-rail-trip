@@ -1,13 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { RAIL_TYPES } from '../data/railTypes'
 import { FERRY_STYLE } from '../data/ferries'
-import { updateSettings } from '../store'
-import { NO_GROUP, type Group, type InterrailMode, type Settings } from '../types'
+import { DEFAULT_TRIP_VIEW, updateSettings } from '../store'
+import { NO_GROUP, type Group, type InterrailMode, type Settings, type TripViewOptions } from '../types'
 
 const IR_MODES: { mode: InterrailMode; label: string }[] = [
   { mode: 'highlight', label: 'Highlight' },
   { mode: 'dim', label: 'Dim others' },
   { mode: 'off', label: 'Off' },
+]
+
+/** The switches of the View trip menu, in order */
+const TRIP_VIEW_ITEMS: { key: Exclude<keyof TripViewOptions, 'mapLabels'>; label: string }[] = [
+  { key: 'pinNames', label: '🏷️ Names of pins' },
+  { key: 'connections', label: '〰️ Trip connections' },
+  { key: 'interrail', label: '🎫 Interrail countries' },
+  { key: 'railways', label: '🛤️ Railway lines' },
+  { key: 'ferries', label: '⛴️ Ferries' },
+  { key: 'streets', label: '🛣️ Streets' },
+  { key: 'currencies', label: '💱 Currencies' },
+  { key: 'directTrains', label: '🚆 Direct-train results' },
 ]
 
 const LABEL_MODES: { mode: Settings['mapLabels']; label: string }[] = [
@@ -23,7 +35,7 @@ interface Props {
 }
 
 export default function MapToolbar({ settings, groups, ratesNote }: Props) {
-  const [menu, setMenu] = useState<'place' | 'person' | 'map' | null>(null)
+  const [menu, setMenu] = useState<'trip' | 'place' | 'person' | 'map' | null>(null)
   // On phones the menus span the screen just below the (wrapping) toolbar
   const [menuTop, setMenuTop] = useState(0)
   useEffect(() => {
@@ -142,16 +154,52 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
     settings.showCurrencies ||
     settings.mapLabels !== 'all'
 
+  const tv = settings.tripView
+  const setTripView = (patch: Partial<TripViewOptions>) => updateSettings({ tripView: { ...tv, ...patch } })
+  const tripViewChanged = (Object.keys(DEFAULT_TRIP_VIEW) as (keyof TripViewOptions)[]).some((k) => tv[k] !== DEFAULT_TRIP_VIEW[k])
+
   return (
     <div className="map-toolbar" ref={ref}>
-      <button
-        className={'toolbar-btn view-trip' + (settings.simpleView ? ' active' : '')}
-        onClick={() => updateSettings({ simpleView: !settings.simpleView })}
-        title="Clean map with only your pins, country names and connections"
-        aria-pressed={settings.simpleView}
-      >
-        🧳 View trip
-      </button>
+      <div className={'split view-trip' + (settings.simpleView ? ' on' : '')}>
+        <button
+          className={'split-main' + (settings.simpleView ? ' active' : '')}
+          onClick={() => updateSettings({ simpleView: !settings.simpleView })}
+          title="Clean map with only your pins and what you choose under ▾"
+          aria-pressed={settings.simpleView}
+        >
+          🧳 View trip
+        </button>
+        <button
+          className={'split-more' + (menu === 'trip' ? ' open' : '')}
+          aria-label="View trip options"
+          onClick={() => setMenu(menu === 'trip' ? null : 'trip')}
+        >
+          ▾
+        </button>
+        {menu === 'trip' && (
+          <div className="menu" style={menuStyle}>
+            <div className="menu-title first">While View trip is on, show</div>
+            {TRIP_VIEW_ITEMS.map((i) => (
+              <Fragment key={i.key}>{check(i.label, tv[i.key], () => setTripView({ [i.key]: !tv[i.key] }))}</Fragment>
+            ))}
+            <div className="menu-sub">Map text</div>
+            <div className="segmented">
+              {LABEL_MODES.map((m) => (
+                <button key={m.mode} className={tv.mapLabels === m.mode ? 'active' : ''} onClick={() => setTripView({ mapLabels: m.mode })}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="menu-hint">
+              Your pins always stay (hide them with 📍 Places / 🧑 People). Everything else comes back when you turn View
+              trip off.
+            </p>
+            <button className="ghost small" disabled={!tripViewChanged} onClick={() => updateSettings({ tripView: DEFAULT_TRIP_VIEW })}>
+              Reset to default
+            </button>
+          </div>
+        )}
+      </div>
       {layer('place')}
       {layer('person')}
       <div className="split">
@@ -173,7 +221,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
           <div className="menu menu-right map-menu" style={menuStyle}>
             {settings.simpleView && (
               <p className="simple-note">
-                ✨ Simple view is on, so these settings are paused.{' '}
+                🧳 View trip is on, so it decides what's shown (choose under its ▾).{' '}
                 <button className="ghost small" onClick={() => updateSettings({ simpleView: false })}>Turn off</button>
               </p>
             )}

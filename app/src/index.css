@@ -574,8 +574,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 .check.disabled { opacity: 0.5; }
 
 /* ---------- Simple view + travel lines ---------- */
-.toolbar-btn.view-trip { border-radius: 10px; font-weight: 600; }
-.toolbar-btn.view-trip.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+.split.view-trip .split-main { font-weight: 600; }
+.split.view-trip.on { border-color: #0f172a; }
+.split.view-trip .split-main.active { background: #0f172a; color: #fff; }
 .simple-note { margin: 0; font-size: 12px; background: var(--bg-2); border-radius: 8px; padding: 6px 8px; }
 .view-switch { display: flex; margin-bottom: 10px; }
 .view-switch button { flex: 1; justify-content: center; }
