@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import MapView, { type PickHit } from './components/MapView'
 import LineEditor from './components/LineEditor'
-import { currentRoute, drawnLines, resolveEndpoint, routeKey } from './lines'
+import { avoidOf, currentRoute, drawnLines, resolveEndpoint, routeKey } from './lines'
 import { railRoute } from './rail/route'
 import PlaceEditor from './components/PlaceEditor'
 import PersonEditor from './components/PersonEditor'
@@ -166,8 +166,12 @@ export default function App() {
       : null
 
   const lookup: Lookup = useMemo(
-    () => ({ places: new Map(places.map((p) => [p.id, p])), people: new Map(people.map((p) => [p.id, p])) }),
-    [places, people],
+    () => ({
+      places: new Map(places.map((p) => [p.id, p])),
+      people: new Map(people.map((p) => [p.id, p])),
+      avoid: settings.avoidCountries,
+    }),
+    [places, people, settings.avoidCountries],
   )
 
   const trip = useMemo(() => buildTrip(stops, lines, settings.tripStart), [stops, lines, settings.tripStart])
@@ -228,10 +232,10 @@ export default function App() {
       if (routeAttempts.current.has(attempt)) continue
       routeAttempts.current.add(attempt)
       setRouting((s) => new Set(s).add(line.id))
-      railRoute(resolveEndpoint(line.from, lookup), resolveEndpoint(line.to, lookup))
+      railRoute(resolveEndpoint(line.from, lookup), resolveEndpoint(line.to, lookup), avoidOf(line, lookup))
         .then((r) => {
           const fresh = getLine(line.id)
-          if (fresh) saveLine({ ...fresh, route: { key, path: r?.path ?? null, legs: r?.legs ?? [] } })
+          if (fresh) saveLine({ ...fresh, route: { key, path: r?.path ?? null, legs: r?.legs ?? [], countries: r?.countries ?? [] } })
         })
         .catch(() => {
           // Offline or the service is busy: try again next time the app opens
@@ -467,6 +471,7 @@ export default function App() {
       target: target && { name: target.name, lat: target.lat, lng: target.lng },
       travelDate: date,
       typical,
+      avoid: lineEntry?.kind === 'line' ? avoidOf(lineEntry.line, lookup) : lookup.avoid,
     })
     setTrainsQuery((q) => ({ ...q, date: typical ? nextWeekday() : date }))
     void trainsFrom(from.name, from.lat, from.lng, isStation)

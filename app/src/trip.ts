@@ -6,6 +6,8 @@ import type { Activity, Person, Place, PlaceStatus, Stop, TravelLine } from './t
 export interface Lookup {
   places: Map<string, Place>
   people: Map<string, Person>
+  /** Countries connections avoid by default */
+  avoid: string[]
 }
 
 /** Order value between two neighbours (either may be missing) */

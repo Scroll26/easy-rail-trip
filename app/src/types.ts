@@ -102,12 +102,16 @@ export interface TravelLine {
   price?: number | null
   /** The expense created when it was paid */
   paidExpenseId?: string | null
+  /** Countries (ISO codes) the route should stay out of; undefined = the default from Settings */
+  avoid?: string[]
   /** Train connections: the route along the tracks, for the ends it was looked up for */
   route?: {
     key: string
     /** [lng, lat] points; null = no train route found */
     path: [number, number][] | null
     legs: RouteLeg[]
+    /** Countries it runs through, in order */
+    countries?: string[]
   } | null
   createdAt: number
   updatedAt: number
@@ -173,6 +177,8 @@ export interface Settings {
   tripStart: string | null
   /** Travel days of a flexi pass; null = continuous pass or not set */
   passDays: number | null
+  /** Countries connections stay out of unless a connection says otherwise (e.g. your country of residence) */
+  avoidCountries: string[]
   /** Daily spending goal in EUR */
   budgetDaily: number
   /** First day of the budget (YYYY-MM-DD); null = the trip start */

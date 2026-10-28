@@ -58,6 +58,7 @@ const DEFAULT_SETTINGS: Settings = {
   tripView: DEFAULT_TRIP_VIEW,
   tripStart: null,
   passDays: null,
+  avoidCountries: [],
   budgetDaily: 50,
   budgetStart: null,
   mapLabels: 'all',

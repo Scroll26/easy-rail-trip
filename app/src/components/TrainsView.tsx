@@ -14,6 +14,7 @@ import type { Place, Settings } from '../types'
 import { updateSettings } from '../store'
 import { coverage, COVERAGE_LABEL } from '../data/interrailOperators'
 import { timeOf } from '../lines'
+import { countryAt, useCountries } from '../countries'
 import type { DirectTrainInfo } from '../rail/transitous'
 
 interface Props {
@@ -52,6 +53,8 @@ export interface TrainsContext {
   travelDate: string
   /** The travel day is too far ahead (or past), so a typical weekday is searched instead */
   typical: boolean
+  /** Countries this connection stays out of */
+  avoid: string[]
 }
 
 /** Stations this close to the target count as "there" */
@@ -135,6 +138,15 @@ export default function TrainsView({
   const nearTarget = target ? list.filter((d) => km(d, target) <= NEAR_TARGET_KM) : []
   const rest = target ? list.filter((d) => km(d, target) > NEAR_TARGET_KM) : list
   const shown = showAll ? rest : rest.slice(0, LIMIT)
+  // Trains ending in a country you avoid (not the one you leave from) get a note
+  const shapes = useCountries()
+  const avoid = context?.avoid ?? settings.avoidCountries
+  const fromIso = origin && avoid.length ? countryAt(shapes, origin.lat, origin.lng)?.iso : undefined
+  const avoidedIn = (d: Destination) => {
+    if (!avoid.length) return null
+    const c = countryAt(shapes, d.lat, d.lng)
+    return c && c.iso !== fromIso && avoid.includes(c.iso) ? c.name : null
+  }
   const tripLabel = context?.lineId || context?.toStopId ? 'Use this train' : 'Add to the trip (with a new stop there)'
 
   const row = (d: Destination) => (
@@ -144,6 +156,7 @@ export default function TrainsView({
         <span className="item-main">
           <strong className="ellipsis">{d.name}</strong>
           {d.arrival && <span className="muted small">arrives {timeOf(d.arrival)}</span>}
+          {avoidedIn(d) && <span className="warn-text small">🚫 in {avoidedIn(d)}, which you avoid</span>}
           <TrainInfoLine info={trainInfo[d.stopId]} />
         </span>
       </button>

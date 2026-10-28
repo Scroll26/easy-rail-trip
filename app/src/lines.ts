@@ -54,16 +54,26 @@ export function legSummary(legs: RouteLeg[]): { icon: string; text: string; tone
   }
 }
 
-/** Identifies the ends a route was looked up for; a moved pin makes it stale */
+/** Countries this connection stays out of: its own choice, else the default */
+export const avoidOf = (line: TravelLine, lookup: Lookup) => line.avoid ?? lookup.avoid
+
+/** Identifies the ends (and avoided countries) a route was looked up for; a moved pin makes it stale */
 export function routeKey(line: TravelLine, lookup: Lookup) {
   const a = resolveEndpoint(line.from, lookup)
   const b = resolveEndpoint(line.to, lookup)
-  return `v${ROUTE_VERSION}:` + [a.lat, a.lng, b.lat, b.lng].map((n) => n.toFixed(4)).join(',')
+  const avoid = [...avoidOf(line, lookup)].sort().join('+')
+  return `v${ROUTE_VERSION}:` + [a.lat, a.lng, b.lat, b.lng].map((n) => n.toFixed(4)).join(',') + (avoid ? `!${avoid}` : '')
 }
 
 /** The stored rail route of a train connection, if it's still for the current ends */
 export function currentRoute(line: TravelLine, lookup: Lookup) {
   return line.kind === 'train' && line.route?.key === routeKey(line, lookup) ? line.route : null
+}
+
+/** Avoided countries the stored route still runs through (the start and end country don't count) */
+export function avoidedOnRoute(line: TravelLine, lookup: Lookup): string[] {
+  const c = currentRoute(line, lookup)?.countries ?? []
+  return avoidOf(line, lookup).filter((iso) => c.slice(1, -1).includes(iso) && iso !== c[0] && iso !== c[c.length - 1])
 }
 
 export function drawnLines(lines: TravelLine[], lookup: Lookup): DrawnLine[] {

@@ -76,6 +76,7 @@ Your route as **stops** (where you sleep and for how many nights) and the **conn
 - Between two stops without a connection you'll see **"How do you get here?"**: tap **🧭 Rough plan** or **🚆 Find a train**.
 - **🚆 on a connection** opens the Trains tab for exactly that trip: from that station, on that day, with the stations near your next stop listed first. Tap **Use** and the connection becomes that train.
 - **✏️ on a connection:** departure date (optional, see fixed dates above), night train (arrives the next day), ticket or reservation **price**, notes, swap the direction.
+- **🚫 Avoid countries:** train connections are routed around the countries in your default list (Settings), e.g. your **country of residence**, which Interrail covers only on the way out and back home. Change the list on any connection for just that one (e.g. leave it out on the way home), or add countries you simply don't want to go through. The connection shows the countries it runs through and *✓ Stays out of Germany*, or *⚠ Runs through Germany* if no route around it was found (e.g. Copenhagen → Amsterdam). A start or end in an avoided country is fine. In the Trains tab, destinations in an avoided country are marked.
 - **〰️ Draw a connection on the map:** tap a start and a destination (a pin, a station dot, a town or any point). Station to station becomes a train connection.
 
 ### Places and People
@@ -121,6 +122,7 @@ Set a **daily goal** (for example 50 €) and log what you spend; the app tells 
 
 - **Sync with Google Drive** (see below)
 - **Backup:** export your whole trip as a file, or import one
+- **Countries to avoid:** the default for all train connections (e.g. your country of residence)
 - **Interrail countries:** change which countries are highlighted
 
 ---

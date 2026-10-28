@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { loadCountries } from '../countries'
 import SyncSection from './SyncSection'
 import DataSection from './DataSection'
+import AvoidCountries from './AvoidCountries'
 import { DEFAULT_INTERRAIL_COUNTRIES } from '../data/interrail'
 import { exportJson, importJson, updateSettings } from '../store'
 import type { Settings } from '../types'
@@ -72,6 +73,15 @@ export default function SettingsView({ settings }: { settings: Settings }) {
       </section>
 
       <DataSection onExport={download} />
+
+      <section>
+        <h3>Countries to avoid</h3>
+        <p className="muted small">
+          Train connections are routed around these, unless you change it on a connection. Put your country of
+          residence here: Interrail covers it only on the way out and back home.
+        </p>
+        <AvoidCountries value={settings.avoidCountries} onChange={(v) => updateSettings({ avoidCountries: v })} />
+      </section>
 
       <section>
         <h3>Interrail countries</h3>

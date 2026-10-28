@@ -3,7 +3,8 @@ import { formatEur } from '../budget'
 import { CATEGORIES } from '../data/categories'
 import { daysBetween, formatDay, formatShort, today as todayDate } from '../dates'
 import { search, type GeoResult } from '../geocode'
-import { legSummary, LINE_KINDS, lineTitle, timeOf } from '../lines'
+import { countryNames, useCountries } from '../countries'
+import { avoidedOnRoute, legSummary, LINE_KINDS, lineTitle, timeOf } from '../lines'
 import { newId, saveLine, savePlace, saveStop, updateSettings } from '../store'
 import {
   activityDate,
@@ -231,6 +232,8 @@ function LineRow({ e, lookup, onShow }: { e: LineEntry; lookup: Lookup; onShow: 
   const kind = LINE_KINDS[e.line.kind]
   const t = lineTrains(e.line, lookup)
   const sum = t.legs.length ? legSummary(t.legs) : null
+  const shapes = useCountries()
+  const stillIn = avoidedOnRoute(e.line, lookup)
   const parts = [
     formatDay(e.date) + (t.departure ? ' ' + timeOf(t.departure) : '') + (e.line.fixedDate ? ' 📌' : ''),
     e.line.overnight ? '🌙 night train' : '',
@@ -242,10 +245,11 @@ function LineRow({ e, lookup, onShow }: { e: LineEntry; lookup: Lookup; onShow: 
       <span className="item-main">
         <strong className="ellipsis">{lineTitle(e.line, lookup)}</strong>
         <span className="muted small ellipsis">{parts.join(' · ')}</span>
-        {(sum || t.reservation || e.line.kind === 'plan') && (
+        {(sum || t.reservation || stillIn.length > 0 || e.line.kind === 'plan') && (
           <span className="small ellipsis">
             {sum && <span className={'cov-text ' + sum.tone}>{sum.icon} Interrail</span>}
             {t.reservation && <span className="warn-text"> · ⚠ reservation</span>}
+            {stillIn.length > 0 && <span className="warn-text"> · ⚠ through {countryNames(stillIn, shapes)}</span>}
             {e.line.kind === 'plan' && <span className="muted">no train chosen yet</span>}
           </span>
         )}

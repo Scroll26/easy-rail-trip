@@ -1,4 +1,6 @@
-import { currentRoute, LINE_KINDS, lineTitle } from '../lines'
+import { avoidedOnRoute, avoidOf, currentRoute, LINE_KINDS, lineTitle } from '../lines'
+import { countryNames, useCountries } from '../countries'
+import AvoidCountries from './AvoidCountries'
 import RouteLegs from './RouteLegs'
 import PriceField from './PriceField'
 import GapNotice from './GapNotice'
@@ -24,6 +26,13 @@ export default function LineEditor({ line, trip, entry, lookup, routeFailed, onC
   const set = (patch: Partial<TravelLine>) => saveLine({ ...line, ...patch })
   const route = currentRoute(line, lookup)
   const title = lineTitle(line, lookup)
+  const shapes = useCountries()
+  const names = (isos: string[]) => countryNames(isos, shapes)
+  const avoid = avoidOf(line, lookup)
+  const through = route?.countries ?? []
+  const stillIn = avoidedOnRoute(line, lookup)
+  const atEnds = avoid.filter((iso) => iso === through[0] || iso === through[through.length - 1])
+  const sameAsDefault = [...avoid].sort().join() === [...lookup.avoid].sort().join()
   return (
     <div className="editor">
       <div className="editor-head">
@@ -79,7 +88,20 @@ export default function LineEditor({ line, trip, entry, lookup, routeFailed, onC
       {line.kind === 'train' && (
         <div className="route-info">
           {route?.path ? (
-            <RouteLegs legs={route.legs} />
+            <>
+              <RouteLegs legs={route.legs} />
+              {through.length > 1 && <span className="small muted">Through {through.map((iso) => names([iso])).join(' → ')}</span>}
+              {stillIn.length > 0 ? (
+                <span className="small warn-text">⚠ Runs through {names(stillIn)}: no train route around it was found.</span>
+              ) : (
+                avoid.length > atEnds.length && <span className="small cov-text good">✓ Stays out of {names(avoid.filter((c) => !atEnds.includes(c)))}</span>
+              )}
+              {atEnds.length > 0 && (
+                <span className="small muted">
+                  {through[0] === atEnds[0] ? 'Starts' : 'Ends'} in {names(atEnds)}, so that part can't be avoided.
+                </span>
+              )}
+            </>
           ) : route ? (
             <span className="small muted">No train route found between these places, so it's drawn as a straight line.</span>
           ) : routeFailed ? (
@@ -91,6 +113,24 @@ export default function LineEditor({ line, trip, entry, lookup, routeFailed, onC
           )}
         </div>
       )}
+      <div className="field">
+        <span>Avoid countries</span>
+        <AvoidCountries value={avoid} onChange={(v) => set({ avoid: v })} />
+        <span className="muted small">
+          {line.avoid && !sameAsDefault ? (
+            <>
+              Just for this connection.{' '}
+              <button className="ghost link-btn inline" onClick={() => set({ avoid: undefined })}>
+                Use the default{lookup.avoid.length ? ` (${names(lookup.avoid)})` : ''}
+              </button>
+              .
+            </>
+          ) : (
+            'The default from Settings. Change it here for just this connection.'
+          )}{' '}
+          Interrail covers your country of residence only on the way out and back home.
+        </span>
+      </div>
       <div className="row">
         <button onClick={onFindTrains}>🚆 {line.kind === 'train' ? 'Pick another train' : 'Find a direct train'}</button>
         <button onClick={() => set({ from: line.to, to: line.from })}>⇄ Swap direction</button>
