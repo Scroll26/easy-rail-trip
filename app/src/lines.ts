@@ -1,7 +1,7 @@
 import { ROUTE_VERSION } from './rail/route'
 import { coverage } from './data/interrailOperators'
 import type { Endpoint, LineKind, RouteLeg, TravelLine } from './types'
-import type { Lookup } from './timeline'
+import type { Lookup } from './trip'
 
 export const LINE_KINDS: Record<LineKind, { label: string; icon: string; color: string; hint: string }> = {
   train: { label: 'Train connection', icon: '🚆', color: '#2563eb', hint: 'a concrete train, station to station' },

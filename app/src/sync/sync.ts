@@ -124,7 +124,7 @@ export async function syncNow(interactive = false): Promise<void> {
 }
 
 const hasLocalData = () =>
-  ['places', 'people', 'timeline', 'days', 'groups', 'lines', 'expenses'].some((name) => doc.getMap(name).size > 0)
+  ['places', 'people', 'stops', 'activities', 'groups', 'lines', 'expenses'].some((name) => doc.getMap(name).size > 0)
 
 export type ConnectResult = 'connected' | 'choose'
 let pendingRemote: Uint8Array | null = null

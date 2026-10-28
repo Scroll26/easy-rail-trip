@@ -92,7 +92,14 @@ export interface TravelLine {
   from: Endpoint
   to: Endpoint
   notes: string
+  /** Position in the trip, shared with the stops */
   order?: number
+  /** Arrives the day after it leaves (night train) */
+  overnight?: boolean
+  /** Planned ticket / reservation price in EUR */
+  price?: number | null
+  /** The expense created when it was paid */
+  paidExpenseId?: string | null
   /** Train connections: the route along the tracks, for the ends it was looked up for */
   route?: {
     key: string
@@ -144,9 +151,13 @@ export interface Settings {
   reachFocus: boolean
   /** Clean map: only pins + names, country names and travel lines */
   simpleView: boolean
+  /** First day of the trip (YYYY-MM-DD); null = the first fixed date, else today */
+  tripStart: string | null
+  /** Travel days of a flexi pass; null = continuous pass or not set */
+  passDays: number | null
   /** Daily spending goal in EUR */
   budgetDaily: number
-  /** First day of the budget (YYYY-MM-DD); null = first timeline day */
+  /** First day of the budget (YYYY-MM-DD); null = the trip start */
   budgetStart: string | null
   /** Basemap text: everything, only country names, or nothing */
   mapLabels: 'all' | 'countries' | 'none'
@@ -163,44 +174,46 @@ export interface Settings {
 
 export type Selection = { kind: 'place' | 'person'; id: string } | null
 
-export type ItemType = 'place' | 'train' | 'stay' | 'note'
-
-export interface TrainInfo {
-  from: string
-  to: string
-  fromLat: number | null
-  fromLng: number | null
-  toLat: number | null
-  toLng: number | null
-  /** Arrival time HH:MM; departure is the item's `time` */
-  arrive: string
-  /** Train number / name, e.g. "RJX 63" */
-  number: string
-  reservation: boolean
+/** Where you sleep at a stop */
+export interface StayInfo {
+  placeId?: string | null
+  personId?: string | null
+  /** Name when it isn't one of your pins, e.g. "Hostel One Prague" */
+  name: string
+  /** Planned price for all nights, in EUR */
+  price: number | null
+  /** The expense created when it was paid; then it no longer counts as planned */
+  paidExpenseId?: string | null
 }
 
-export interface TimelineItem {
+/** One stop of the trip: a town (or any place) where you spend some nights */
+export interface Stop {
   id: string
-  type: ItemType
-  /** YYYY-MM-DD, or null for the "unscheduled" list */
-  date: string | null
-  /** Manual order within the day (fractional, so items can be inserted between others) */
-  order: number
-  /** Optional HH:MM */
-  time: string
-  /** Free title for notes and stays without a place/person */
-  title: string
-  notes: string
-  placeId: string | null
-  personId: string | null
-  /** Stays only: number of nights starting at `date` */
+  placeId: string
+  /** 0 = just passing through */
   nights: number
-  train: TrainInfo | null
+  /** Arrival date fixed by you (booked night train, event…); null = follows from the stop before */
+  fixedDate: string | null
+  stay: StayInfo | null
+  notes: string
+  /** Position in the trip, shared with the connections (TravelLine.order) */
+  order: number
   createdAt: number
   updatedAt: number
 }
 
-export interface DayInfo {
-  date: string
+/** Something to do during a stop: one of your places, or a note */
+export interface Activity {
+  id: string
+  stopId: string
+  /** Day of the stop, 0 = arrival day; null = sometime during the stop */
+  day: number | null
+  placeId: string | null
+  /** Text of a note (activities without a place) */
   title: string
+  /** Optional HH:MM */
+  time: string
+  order: number
+  createdAt: number
+  updatedAt: number
 }

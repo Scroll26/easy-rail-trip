@@ -92,7 +92,7 @@ export default function DataSection({ onExport }: { onExport: () => void }) {
               {pending === 'device' ? (
                 <>
                   <p>
-                    This deletes <b>all places, people, groups, travel lines, timeline and budget</b> on this device, plus
+                    This deletes <b>all places, people, groups, the trip with its stops and connections, and the budget</b> on this device, plus
                     its settings and saved lookups.
                   </p>
                   <p className={'recover ' + (syncOn ? 'yes' : 'no')}>

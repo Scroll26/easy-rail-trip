@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { CATEGORIES, STATUSES } from '../data/categories'
 import { listOrder, savePerson, savePlace } from '../store'
-import { between } from '../timeline'
-import { NO_GROUP, type Group, type Person, type Place } from '../types'
+import { between } from '../trip'
+import { NO_GROUP, type Group, type Person, type Place, type PlaceStatus } from '../types'
 import GroupPicker from './GroupPicker'
 import SortableRows from './SortableRows'
 
@@ -17,6 +17,8 @@ interface Props {
   highlightId: string | null
   /** Show items in their group's colour (same setting as the map pins) */
   colorByGroup: boolean
+  /** Places: status as shown (automatic for places in the trip) */
+  statusOf?: (p: Place) => PlaceStatus
   onShow: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (item: Item) => void
@@ -32,6 +34,7 @@ export default function CollectionView({
   countryOf,
   highlightId,
   colorByGroup,
+  statusOf = (p) => p.status,
   onShow,
   onEdit,
   onDelete,
@@ -178,11 +181,11 @@ export default function CollectionView({
           if (isPlace) {
             const p = i as Place
             icon = (
-              <span className="item-icon" style={{ background: groupColor ?? STATUSES[p.status].color }}>
+              <span className="item-icon" style={{ background: groupColor ?? STATUSES[statusOf(p)].color }}>
                 {CATEGORIES[p.category].icon}
               </span>
             )
-            sub = [STATUSES[p.status].label, country ?? '', p.notes]
+            sub = [STATUSES[statusOf(p)].label, country ?? '', p.notes]
           } else {
             const p = i as Person
             icon = (

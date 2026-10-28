@@ -1,5 +1,6 @@
 import { addDays, daysBetween } from './dates'
 import type { Rates } from './rates'
+import { newId, saveExpense } from './store'
 import type { Expense, ExpenseCategory } from './types'
 
 /** Shown for expenses without a category */
@@ -108,4 +109,12 @@ export function summarize(
     days,
     unconverted,
   }
+}
+
+/** Records a planned cost (bed, ticket) as paid: a one-off expense in EUR. Returns its id. */
+export function recordPaid(amount: number, date: string, category: ExpenseCategory, note: string) {
+  const now = Date.now()
+  const id = newId()
+  saveExpense({ id, date, amount, currency: 'EUR', rate: 1, category, note, oneOff: true, createdAt: now, updatedAt: now })
+  return id
 }

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { DEFAULT_INTERRAIL_COUNTRIES } from './data/interrail'
-import type { DayInfo, Expense, Group, Person, Place, Settings, TimelineItem, TravelLine } from './types'
+import type { Activity, Expense, Group, Person, Place, Settings, Stop, TravelLine } from './types'
 
 // The whole trip lives in one Yjs document. Each device keeps a copy in IndexedDB;
 // later the same document is merged via Google Drive, so offline edits on several
@@ -13,11 +13,18 @@ export const persistence = new IndexeddbPersistence('rail-planner-trip', doc)
 const places = doc.getMap<Place>('places')
 const people = doc.getMap<Person>('people')
 const settings = doc.getMap<unknown>('settings')
-const timeline = doc.getMap<TimelineItem>('timeline')
-const days = doc.getMap<DayInfo>('days')
+const stops = doc.getMap<Stop>('stops')
+const activities = doc.getMap<Activity>('activities')
 const groups = doc.getMap<Group>('groups')
 const lines = doc.getMap<TravelLine>('lines')
 const expenses = doc.getMap<Expense>('expenses')
+
+// The old day-by-day timeline was replaced by stops + activities; drop its leftovers
+void persistence.whenSynced.then(() =>
+  doc.transact(() => {
+    for (const name of ['timeline', 'days']) doc.getMap(name).clear()
+  }),
+)
 
 const DEFAULT_SETTINGS: Settings = {
   interrailMode: 'highlight',
@@ -33,6 +40,8 @@ const DEFAULT_SETTINGS: Settings = {
   showFerriesDiscount: true,
   reachFocus: true,
   simpleView: false,
+  tripStart: null,
+  passDays: null,
   budgetDaily: 50,
   budgetStart: null,
   mapLabels: 'all',
@@ -81,15 +90,15 @@ const settingsStore = createMapStore(
   (m) => ({ ...DEFAULT_SETTINGS, ...Object.fromEntries(m.entries()) }) as Settings,
 )
 
-const byOrder = (a: TimelineItem, b: TimelineItem) => a.order - b.order
-const timelineStore = createMapStore(timeline, (m) => [...m.values()].sort(byOrder))
-const daysStore = createMapStore(days, (m) => Object.fromEntries(m.entries()) as Record<string, DayInfo>)
+const byOrder = (a: { order: number }, b: { order: number }) => a.order - b.order
+const stopsStore = createMapStore(stops, (m) => [...m.values()].sort(byOrder))
+const activitiesStore = createMapStore(activities, (m) => [...m.values()].sort(byOrder))
 
 export const usePlaces = () => useSyncExternalStore(placesStore.subscribe, placesStore.get)
 export const usePeople = () => useSyncExternalStore(peopleStore.subscribe, peopleStore.get)
 export const useSettings = () => useSyncExternalStore(settingsStore.subscribe, settingsStore.get)
-export const useTimeline = () => useSyncExternalStore(timelineStore.subscribe, timelineStore.get)
-export const useDays = () => useSyncExternalStore(daysStore.subscribe, daysStore.get)
+export const useStops = () => useSyncExternalStore(stopsStore.subscribe, stopsStore.get)
+export const useActivities = () => useSyncExternalStore(activitiesStore.subscribe, activitiesStore.get)
 export const useGroups = () => useSyncExternalStore(groupsStore.subscribe, groupsStore.get)
 export const useLines = () => useSyncExternalStore(linesStore.subscribe, linesStore.get)
 export const useExpenses = () => useSyncExternalStore(expensesStore.subscribe, expensesStore.get)
@@ -134,11 +143,17 @@ export function savePlace(place: Place) {
   places.set(place.id, { ...place, updatedAt: Date.now() })
 }
 
-/** Deletes the place and every timeline entry that points to it */
+/** Deletes the place, its stops and activities; stays there keep its name */
 export function deletePlace(id: string) {
   doc.transact(() => {
+    const name = places.get(id)?.name ?? ''
     places.delete(id)
-    for (const item of [...timeline.values()]) if (item.placeId === id) timeline.delete(item.id)
+    for (const stop of [...stops.values()]) {
+      if (stop.placeId === id) deleteStop(stop.id)
+      else if (stop.stay?.placeId === id)
+        stops.set(stop.id, { ...stop, stay: { ...stop.stay, placeId: null, name: stop.stay.name || name }, updatedAt: Date.now() })
+    }
+    for (const a of [...activities.values()]) if (a.placeId === id) activities.delete(a.id)
   })
 }
 
@@ -146,43 +161,53 @@ export function savePerson(person: Person) {
   people.set(person.id, { ...person, updatedAt: Date.now() })
 }
 
-/** Deletes the person and every timeline entry that points to them */
+/** Deletes the person; stays with them keep the name */
 export function deletePerson(id: string) {
   doc.transact(() => {
+    const name = people.get(id)?.name ?? ''
     people.delete(id)
-    for (const item of [...timeline.values()]) if (item.personId === id) timeline.delete(item.id)
+    for (const stop of [...stops.values()])
+      if (stop.stay?.personId === id)
+        stops.set(stop.id, { ...stop, stay: { ...stop.stay, personId: null, name: stop.stay.name || name }, updatedAt: Date.now() })
   })
 }
 
-export function saveItem(item: TimelineItem) {
-  timeline.set(item.id, { ...item, updatedAt: Date.now() })
+export function saveStop(stop: Stop) {
+  stops.set(stop.id, { ...stop, updatedAt: Date.now() })
 }
 
-export function deleteItem(id: string) {
-  timeline.delete(id)
+export function getStop(id: string) {
+  return stops.get(id)
 }
 
-export function getItem(id: string) {
-  return timeline.get(id)
-}
-
-export function saveDay(day: DayInfo) {
-  days.set(day.date, day)
-}
-
-/** Removes a day; its entries move to the unscheduled list */
-export function deleteDay(date: string) {
+/** Deletes a stop with its activities (connections stay) */
+export function deleteStop(id: string) {
   doc.transact(() => {
-    days.delete(date)
-    for (const item of [...timeline.values()])
-      if (item.date === date) timeline.set(item.id, { ...item, date: null, updatedAt: Date.now() })
+    stops.delete(id)
+    for (const a of [...activities.values()]) if (a.stopId === id) activities.delete(a.id)
   })
 }
 
-/** Order value that puts a new item at the end of a day (or of the unscheduled list) */
-export function nextOrder(date: string | null) {
+export function saveActivity(a: Activity) {
+  activities.set(a.id, { ...a, updatedAt: Date.now() })
+}
+
+export function deleteActivity(id: string) {
+  activities.delete(id)
+}
+
+/** Order value that puts a new stop or connection at the end of the trip */
+export function nextTripOrder() {
   let max = 0
-  for (const item of timeline.values()) if (item.date === date) max = Math.max(max, item.order)
+  for (const s of stops.values()) max = Math.max(max, s.order)
+  for (const l of lines.values()) max = Math.max(max, listOrder(l))
+  return max + 1
+}
+
+/** Order value that puts a new activity at the end of its stop */
+export function nextActivityOrder(stopId: string) {
+  let max = 0
+  for (const a of activities.values()) if (a.stopId === stopId) max = Math.max(max, a.order)
   return max + 1
 }
 
@@ -206,12 +231,12 @@ export function exportJson() {
   return JSON.stringify(
     {
       app: 'rail-planner',
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       places: [...places.values()],
       people: [...people.values()],
-      timeline: [...timeline.values()],
-      days: [...days.values()],
+      stops: [...stops.values()],
+      activities: [...activities.values()],
       groups: [...groups.values()],
       lines: [...lines.values()],
       expenses: [...expenses.values()],
@@ -229,8 +254,8 @@ export function importJson(text: string) {
   doc.transact(() => {
     for (const p of data.places ?? []) places.set(p.id, p)
     for (const p of data.people ?? []) people.set(p.id, p)
-    for (const t of data.timeline ?? []) timeline.set(t.id, t)
-    for (const d of data.days ?? []) days.set(d.date, d)
+    for (const t of data.stops ?? []) stops.set(t.id, t)
+    for (const a of data.activities ?? []) activities.set(a.id, a)
     for (const g of data.groups ?? []) groups.set(g.id, g)
     for (const l of data.lines ?? []) lines.set(l.id, l)
     for (const e of data.expenses ?? []) expenses.set(e.id, e)
@@ -239,6 +264,6 @@ export function importJson(text: string) {
   return {
     places: data.places?.length ?? 0,
     people: data.people?.length ?? 0,
-    timeline: data.timeline?.length ?? 0,
+    stops: data.stops?.length ?? 0,
   }
 }

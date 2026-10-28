@@ -1,25 +1,41 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import MapView, { type PickHit } from './components/MapView'
-import LinesView, { LineEditor } from './components/LinesView'
+import LineEditor from './components/LineEditor'
 import { currentRoute, drawnLines, resolveEndpoint, routeKey } from './lines'
 import { railRoute } from './rail/route'
 import PlaceEditor from './components/PlaceEditor'
 import PersonEditor from './components/PersonEditor'
 import SettingsView from './components/SettingsView'
-import TimelineView from './components/TimelineView'
-import ItemEditor from './components/ItemEditor'
+import TripView from './components/TripView'
+import StopEditor from './components/StopEditor'
 import CollectionView from './components/CollectionView'
 import MapToolbar from './components/MapToolbar'
 import { countryAt, useCountries } from './countries'
 import { useRates } from './rates'
 import { useBottomSheet } from './useBottomSheet'
 import { SyncChip } from './components/SyncSection'
-import TrainsView from './components/TrainsView'
+import TrainsView, { type TrainsContext } from './components/TrainsView'
 import BudgetView from './components/BudgetView'
 import { directTrainInfo, directTrains, findStation, type DirectTrainInfo, type Destination, type DirectQuery, type DirectResult, type Station } from './rail/transitous'
-import { addDays } from './dates'
-import { describeItem, newItem, trainLeg, type Lookup } from './timeline'
+import { daysBetween, formatShort, today } from './dates'
+import { toEur } from './budget'
+import { COUNTRY_CURRENCY } from './data/currencies'
+import {
+  activityDate,
+  appendStop,
+  buildTrip,
+  ordersAfter,
+  placesInTrip,
+  nearestStop,
+  statusOf as tripStatus,
+  stopEndpoint,
+  stopForNight,
+  tripLines,
+  tripStops,
+  type Lookup,
+  type StopEntry,
+} from './trip'
 import { reverse, search, type GeoResult } from './geocode'
 import {
   deletePerson,
@@ -27,28 +43,30 @@ import {
   getPerson,
   getPlace,
   newId,
+  nextActivityOrder,
+  nextTripOrder,
   savePerson,
-  saveItem,
+  saveActivity,
   savePlace,
   saveLine,
+  saveStop,
   getLine,
-  useDays,
+  useActivities,
   useExpenses,
   useLines,
   useGroups,
   usePeople,
   usePlaces,
   useSettings,
-  useTimeline,
+  useStops,
 } from './store'
-import type { Endpoint, Person, Place, PlaceCategory, Selection, Settings, TimelineItem, TravelLine } from './types'
+import type { Endpoint, Person, Place, PlaceCategory, Selection, Settings, TravelLine } from './types'
 
-type Tab = 'places' | 'people' | 'timeline' | 'trains' | 'budget' | 'settings'
+type Tab = 'trip' | 'places' | 'trains' | 'budget' | 'settings'
 
 const TAB_LABELS: Record<Tab, string> = {
-  timeline: 'Timeline',
+  trip: 'Trip',
   places: 'Places',
-  people: 'People',
   trains: 'Trains',
   budget: 'Budget',
   settings: '⚙️',
@@ -60,6 +78,11 @@ function nextWeekday() {
   d.setDate(d.getDate() + (((3 - d.getDay() + 7) % 7) || 7))
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+/** How far ahead published timetables reliably reach; later travel days search a typical weekday */
+const TIMETABLE_DAYS = 45
+
+const isPhone = () => window.matchMedia('(max-width: 799px)').matches
 type Pick =
   | { kind: 'new-place' }
   | { kind: 'move-place'; id: string }
@@ -74,8 +97,8 @@ export default function App() {
   const places = usePlaces()
   const people = usePeople()
   const settings = useSettings()
-  const timeline = useTimeline()
-  const days = useDays()
+  const stops = useStops()
+  const activities = useActivities()
   const groups = useGroups()
   const lines = useLines()
   const expenses = useExpenses()
@@ -84,15 +107,16 @@ export default function App() {
   const rates = useRates(true)
   const mapRef = useRef<maplibregl.Map | null>(null)
 
-  const [tab, setTab] = useState<Tab>('places')
+  const [tab, setTab] = useState<Tab>('trip')
   // selection = item open in the editor; highlight = item marked on the map
   const [selection, setSelection] = useState<Selection>(null)
   const [highlight, setHighlight] = useState<Selection>(null)
-  const [editingItem, setEditingItem] = useState<string | null>(null)
-  const [highlightItem, setHighlightItem] = useState<string | null>(null)
-  /** Day shown alone on the map (timeline map button) */
-  const [mapDay, setMapDay] = useState<string | null>(null)
-  const [placesView, setPlacesView] = useState<'places' | 'lines'>('places')
+  const [editingStop, setEditingStop] = useState<string | null>(null)
+  /** Trip row marked in the list */
+  const [tripHighlight, setTripHighlight] = useState<string | null>(null)
+  /** Stop shown alone on the map (its map button) */
+  const [focusStop, setFocusStop] = useState<string | null>(null)
+  const [placesView, setPlacesView] = useState<'places' | 'people'>('places')
   const [editingLine, setEditingLine] = useState<string | null>(null)
   const [lineHighlight, setLineHighlight] = useState<string | null>(null)
   const [linePopup, setLinePopup] = useState<{ id: string; n: number } | null>(null)
@@ -109,6 +133,8 @@ export default function App() {
   const [trainsError, setTrainsError] = useState('')
   const [reachHighlight, setReachHighlight] = useState<string | null>(null)
   /** Per destination stop id: the direct train and whether Interrail covers it */
+  /** The part of the trip the Trains tab was opened for */
+  const [trainsContext, setTrainsContext] = useState<TrainsContext | null>(null)
   const [trainInfo, setTrainInfo] = useState<Record<string, DirectTrainInfo | null | 'loading' | 'error'>>({})
   const [pick, setPick] = useState<Pick>(null)
   const sheet = useBottomSheet()
@@ -144,21 +170,50 @@ export default function App() {
     [places, people],
   )
 
-  // Stops of the focused day, numbered in timeline order (incl. a stay continuing from an earlier day)
-  const focus = useMemo(() => {
-    if (!mapDay) return null
-    const nums = new Map<string, number>()
-    const continuing = timeline.filter(
-      (i) => i.type === 'stay' && i.date && i.date < mapDay && addDays(i.date, i.nights) > mapDay,
-    )
-    for (const item of [...continuing, ...timeline.filter((i) => i.date === mapDay)]) {
-      const key = describeItem(item, lookup).markerKey
-      if (key && !nums.has(key)) nums.set(key, nums.size + 1)
-    }
-    return nums
-  }, [mapDay, timeline, lookup])
+  const trip = useMemo(() => buildTrip(stops, lines, settings.tripStart), [stops, lines, settings.tripStart])
+  const inTrip = useMemo(() => placesInTrip(trip, activities), [trip, activities])
+  const statusOf = (p: Place) => tripStatus(p, inTrip)
+  // The map colours pins by the status as shown
+  const mapPlaces = useMemo(() => places.map((p) => ({ ...p, status: tripStatus(p, inTrip) })), [places, inTrip])
+  const focusEntry = focusStop ? tripStops(trip).find((s) => s.id === focusStop) : undefined
 
-  const travel = useMemo(() => drawnLines(lines, lookup), [lines, lookup])
+  // Pins of the focused stop, numbered: the town, the bed, then the things to do by day
+  const focus = useMemo(() => {
+    if (!focusEntry) return null
+    const nums = new Map<string, number>()
+    const add = (key: string) => {
+      if (!nums.has(key)) nums.set(key, nums.size + 1)
+    }
+    add('place:' + focusEntry.stop.placeId)
+    const stay = focusEntry.stop.stay
+    if (stay?.placeId) add('place:' + stay.placeId)
+    if (stay?.personId) add('person:' + stay.personId)
+    const key = (a: (typeof activities)[number]) => (activityDate(a, focusEntry) ?? '~') + (a.time || '~')
+    const todo = activities.filter((a) => a.stopId === focusEntry.id && a.placeId).sort((a, b) => key(a).localeCompare(key(b)))
+    for (const a of todo) add('place:' + a.placeId)
+    return nums
+  }, [focusEntry, activities])
+
+  // The connections into and out of the focused stop
+  const focusLines = useMemo(() => {
+    if (!focusEntry) return null
+    const i = trip.entries.indexOf(focusEntry)
+    return new Set([trip.entries[i - 1], trip.entries[i + 1]].filter((e) => e?.kind === 'line').map((e) => e!.id))
+  }, [focusEntry, trip])
+
+  // Where you are: tonight's stop (or the one you just arrived at / leave today)
+  const here = useMemo(() => {
+    const t = today()
+    return stopForNight(trip, t) ?? tripStops(trip).find((s) => s.arrive <= t && t <= s.depart) ?? null
+  }, [trip])
+  const hereCurrency = here ? COUNTRY_CURRENCY[countryOf.get(here.stop.placeId)?.iso ?? ''] ?? null : null
+  const spentToday = useMemo(() => {
+    const t = today()
+    return expenses.filter((e) => e.date === t && !e.oneOff).reduce((sum, e) => sum + (toEur(e, rates) ?? 0), 0)
+  }, [expenses, rates])
+
+  const allTravel = useMemo(() => drawnLines(lines, lookup), [lines, lookup])
+  const travel = useMemo(() => (focusLines ? allTravel.filter((l) => focusLines.has(l.id)) : allTravel), [allTravel, focusLines])
 
   // Train connections follow the tracks: look up each route once (and again if an end moves).
   // The result is stored with the line, so other devices and offline use get it for free.
@@ -213,30 +268,20 @@ export default function App() {
     [settings],
   )
 
-  const legs = useMemo(
-    () =>
-      timeline
-        .filter((i) => i.type === 'train' && (!mapDay || i.date === mapDay))
-        .map(trainLeg)
-        .filter((l) => l !== null),
-    [timeline, mapDay],
-  )
-
-  // Zoom to the focused day
+  // Zoom to the focused stop
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapDay || !focus) return
+    if (!map || !focus) return
     const bounds = new maplibregl.LngLatBounds()
     for (const key of focus.keys()) {
       const [kind, id] = key.split(':')
       const item = kind === 'place' ? lookup.places.get(id) : lookup.people.get(id)
       if (item?.lat != null && item.lng != null) bounds.extend([item.lng, item.lat])
     }
-    for (const leg of legs) for (const c of leg) bounds.extend(c)
     if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 80, maxZoom: 14 })
-    // Only when the chosen day changes, not on every edit
+    // Only when the chosen stop changes, not on every edit
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapDay])
+  }, [focusStop])
 
   // Look up direct trains whenever the station or the options change
   useEffect(() => {
@@ -271,7 +316,8 @@ export default function App() {
     setTrainsOrigin(origin)
     setReachHighlight(null)
     setSelection(null)
-    setEditingItem(null)
+    setEditingStop(null)
+    setEditingLine(null)
     setTab('trains')
     setSheetOpen(true)
   }
@@ -312,18 +358,19 @@ export default function App() {
   function showDestination(d: Destination) {
     checkDestination(d)
     setReachHighlight(d.stopId)
-    if (window.matchMedia('(max-width: 799px)').matches) setSheetOpen(false)
+    if (isPhone()) setSheetOpen(false)
     mapRef.current?.flyTo({ center: [d.lng, d.lat], zoom: Math.max(9, mapRef.current.getZoom()) })
   }
 
   function select(sel: Selection) {
     setSelection(sel)
     setHighlight(sel)
-    setEditingItem(null)
-    if (!sel) setHighlightItem(null)
+    setEditingStop(null)
+    setEditingLine(null)
     setPick(null)
     if (!sel) return
-    setTab(sel.kind === 'place' ? 'places' : 'people')
+    setTab('places')
+    setPlacesView(sel.kind === 'place' ? 'places' : 'people')
     setSheetOpen(true)
   }
 
@@ -333,42 +380,146 @@ export default function App() {
     const item = sel.kind === 'place' ? getPlace(sel.id) : getPerson(sel.id)
     if (item?.lat == null || item.lng == null) return
     // On the phone, get the sheet out of the way so the pin is visible
-    if (window.matchMedia('(max-width: 799px)').matches) setSheetOpen(false)
+    if (isPhone()) setSheetOpen(false)
     flyTo(item.lng, item.lat)
   }
 
-  /** Timeline row click: mark it and show it on the map */
-  function showItem(item: TimelineItem) {
-    setHighlightItem(item.id)
-    const v = describeItem(item, lookup)
-    if (v.markerKey) {
-      const [kind, id] = v.markerKey.split(':')
-      showOnMap({ kind: kind as 'place' | 'person', id })
-      return
-    }
-    const leg = trainLeg(item)
-    if (!leg) return
-    if (window.matchMedia('(max-width: 799px)').matches) setSheetOpen(false)
-    mapRef.current?.fitBounds(new maplibregl.LngLatBounds(leg[0], leg[0]).extend(leg[1]), { padding: 80 })
+  /** Trip row click: mark it and show the town on the map */
+  function showStop(entry: StopEntry) {
+    setTripHighlight(entry.id)
+    showOnMap({ kind: 'place', id: entry.stop.placeId })
   }
 
-  function editItem(id: string) {
+  function editStop(id: string) {
     setSelection(null)
-    setEditingItem(id)
-    setHighlightItem(id)
+    setEditingLine(null)
+    setEditingStop(id)
+    setTripHighlight(id)
+    setTab('trip')
     setSheetOpen(true)
   }
 
-  function addPlaceToTimeline(placeId: string) {
-    const item = newItem('place', null, { placeId })
-    saveItem(item)
-    setTab('timeline')
-    editItem(item.id)
+  function addPlaceToStop(placeId: string, stopId: string) {
+    const now = Date.now()
+    saveActivity({
+      id: newId(),
+      stopId,
+      day: null,
+      placeId,
+      title: '',
+      time: '',
+      order: nextActivityOrder(stopId),
+      createdAt: now,
+      updatedAt: now,
+    })
+    editStop(stopId)
+  }
+
+  /** Where the trip uses a place, for the chips in its editor */
+  function placeUses(placeId: string) {
+    const uses: { stopId: string; label: string }[] = []
+    for (const s of tripStops(trip)) {
+      const town = lookup.places.get(s.stop.placeId)?.name ?? ''
+      if (s.stop.placeId === placeId) uses.push({ stopId: s.id, label: `🏙️ Stop · ${formatShort(s.arrive)}` })
+      if (s.stop.stay?.placeId === placeId) uses.push({ stopId: s.id, label: `🛏️ Bed in ${town} · ${formatShort(s.arrive)}` })
+      for (const a of activities)
+        if (a.stopId === s.id && a.placeId === placeId) {
+          const d = activityDate(a, s)
+          uses.push({ stopId: s.id, label: `📍 In ${town}${d ? ' · ' + formatShort(d) : ''}` })
+        }
+    }
+    return uses
+  }
+
+  /** Open the Trains tab for a part of the trip: its station, its date, and where it should go */
+  function findTrainsFor(ctx: { afterId: string; lineId?: string; toStopId?: string }) {
+    const entry = (id?: string) => trip.entries.find((e) => e.id === id)
+    const lineEntry = entry(ctx.lineId)
+    const after = entry(ctx.afterId)
+    let from: Endpoint
+    let target: Endpoint | null = null
+    let date: string
+    let isStation = false
+    if (lineEntry?.kind === 'line') {
+      from = resolveEndpoint(lineEntry.line.from, lookup)
+      target = resolveEndpoint(lineEntry.line.to, lookup)
+      date = lineEntry.date
+      isStation = lineEntry.line.kind === 'train'
+    } else if (after?.kind === 'stop') {
+      from = stopEndpoint(after.stop, lookup)
+      isStation = lookup.places.get(after.stop.placeId)?.category === 'station'
+      date = after.depart
+      const to = entry(ctx.toStopId)
+      if (to?.kind === 'stop') target = stopEndpoint(to.stop, lookup)
+    } else return
+    const t = today()
+    const typical = date < t || daysBetween(t, date) > TIMETABLE_DAYS
+    setTrainsContext({
+      afterId: ctx.afterId,
+      lineId: lineEntry ? ctx.lineId : undefined,
+      toStopId: target && !lineEntry ? ctx.toStopId : undefined,
+      label: target ? `${from.name} → ${target.name}` : `Onwards from ${from.name}`,
+      target: target && { name: target.name, lat: target.lat, lng: target.lng },
+      travelDate: date,
+      typical,
+    })
+    setTrainsQuery((q) => ({ ...q, date: typical ? nextWeekday() : date }))
+    void trainsFrom(from.name, from.lat, from.lng, isStation)
+  }
+
+  /** Trains for whatever follows a stop: its connection, the next stop, or anywhere */
+  function trainsAfterStop(stopId: string) {
+    const i = trip.entries.findIndex((e) => e.id === stopId)
+    const next = trip.entries[i + 1]
+    findTrainsFor({
+      afterId: stopId,
+      lineId: next?.kind === 'line' ? next.id : undefined,
+      toStopId: next?.kind === 'stop' ? next.id : undefined,
+    })
+  }
+
+  /** A direct-train result goes into the trip, as the Trains tab's context says */
+  function addTrainToTrip(d: Destination) {
+    if (!trainsOrigin) return
+    const ctx = trainsContext
+    const now = Date.now()
+    const from: Endpoint = { name: trainsOrigin.name, lat: trainsOrigin.lat, lng: trainsOrigin.lng }
+    const to: Endpoint = { name: d.name, lat: d.lat, lng: d.lng }
+    // Arrives on a later day than it leaves: a night train
+    const overnight = !!d.arrival && d.arrival.slice(0, 10) > trainsQuery.date
+    const existing = ctx?.lineId ? getLine(ctx.lineId) : undefined
+    let lineId: string
+    if (existing) {
+      lineId = existing.id
+      saveLine({ ...existing, kind: 'train', from, to, overnight, route: null })
+    } else {
+      const [lineOrder, stopOrder] = ordersAfter(trip, ctx?.afterId ?? null, 2, nextTripOrder())
+      lineId = newId()
+      saveLine({ id: lineId, kind: 'train', from, to, notes: '', overnight, order: lineOrder, createdAt: now, updatedAt: now })
+      // Not towards a stop of the trip: the destination becomes the next stop
+      if (!ctx?.toStopId) {
+        const place: Place = {
+          id: newId(),
+          name: d.name,
+          lat: d.lat,
+          lng: d.lng,
+          category: 'station',
+          status: 'idea',
+          notes: '',
+          url: '',
+          createdAt: now,
+          updatedAt: now,
+        }
+        savePlace(place)
+        saveStop({ id: newId(), placeId: place.id, nights: 1, fixedDate: null, stay: null, notes: '', order: stopOrder, createdAt: now, updatedAt: now })
+      }
+    }
+    setTrainsContext(null)
+    editLine(lineId)
   }
 
   function confirmDelete(sel: NonNullable<Selection>, name: string) {
-    const linked = timeline.filter((i) => (sel.kind === 'place' ? i.placeId : i.personId) === sel.id).length
-    const extra = linked ? ` It's also removed from ${linked} timeline entries.` : ''
+    const extra = sel.kind === 'place' && inTrip.has(sel.id) ? ' It is also removed from your trip.' : ''
     if (!confirm(`Delete "${name || 'Unnamed'}"?${extra} This can't be undone.`)) return
     if (sel.kind === 'place') deletePlace(sel.id)
     else deletePerson(sel.id)
@@ -441,16 +592,12 @@ export default function App() {
         from: pick.from,
         to,
         notes: '',
+        order: nextTripOrder(),
         createdAt: now,
         updatedAt: now,
       }
       saveLine(line)
-      setTab('places')
-      setPlacesView('lines')
-      setSelection(null)
-      setEditingItem(null)
-      setEditingLine(line.id)
-      setLineHighlight(line.id)
+      editLine(line.id)
       return
     }
     setPick(null)
@@ -491,24 +638,25 @@ export default function App() {
     }
   }
 
-  const editedItem = editingItem ? timeline.find((i) => i.id === editingItem) : undefined
+  const editedStop = editingStop ? tripStops(trip).find((s) => s.id === editingStop) : undefined
   const editedLine = editingLine ? lines.find((l) => l.id === editingLine) : undefined
 
   function editLine(id: string) {
     setSelection(null)
-    setEditingItem(null)
+    setEditingStop(null)
     setEditingLine(id)
     setLineHighlight(id)
-    setTab('places')
-    setPlacesView('lines')
+    setTripHighlight(id)
+    setTab('trip')
     setSheetOpen(true)
   }
 
   function showLine(line: TravelLine) {
     setLineHighlight(line.id)
+    setTripHighlight(line.id)
     const a = resolveEndpoint(line.from, lookup)
     const b = resolveEndpoint(line.to, lookup)
-    if (window.matchMedia('(max-width: 799px)').matches) setSheetOpen(false)
+    if (isPhone()) setSheetOpen(false)
     mapRef.current?.fitBounds(new maplibregl.LngLatBounds([a.lng, a.lat], [a.lng, a.lat]).extend([b.lng, b.lat]), {
       padding: 100,
       maxZoom: 11,
@@ -524,37 +672,52 @@ export default function App() {
     body = (
       <LineEditor
         line={editedLine}
+        entry={tripLines(trip).find((l) => l.id === editedLine.id)}
         lookup={lookup}
         routeFailed={routeFailed.has(editedLine.id) && !routing.has(editedLine.id)}
         onClose={() => setEditingLine(null)}
-      />
-    )
-  else if (editedItem)
-    body = (
-      <ItemEditor
-        item={editedItem}
-        items={timeline}
-        lookup={lookup}
-        onClose={() => setEditingItem(null)}
-        onOpenPlace={(id) => select({ kind: 'place', id })}
-      />
-    )
-  else if (selectedPlace)
-    body = (
-      <PlaceEditor
-        place={selectedPlace}
-        scheduled={timeline.filter((i) => i.placeId === selectedPlace.id)}
-        onClose={() => setSelection(null)}
-        onMove={() => startPick({ kind: 'move-place', id: selectedPlace.id })}
-        onTrains={() => trainsFrom(selectedPlace.name, selectedPlace.lat, selectedPlace.lng, selectedPlace.category === 'station')}
-        onAddToTimeline={() => addPlaceToTimeline(selectedPlace.id)}
-        onOpenItem={(id) => {
-          setTab('timeline')
-          editItem(id)
+        onFindTrains={() => {
+          const i = trip.entries.findIndex((e) => e.id === editedLine.id)
+          const prev = trip.entries[i - 1]
+          if (prev) findTrainsFor({ afterId: prev.id, lineId: editedLine.id })
+          else {
+            // First thing of the trip: search from its start
+            const from = resolveEndpoint(editedLine.from, lookup)
+            setTrainsContext(null)
+            void trainsFrom(from.name, from.lat, from.lng, editedLine.kind === 'train')
+          }
         }}
       />
     )
-  else if (selectedPerson)
+  else if (editedStop)
+    body = (
+      <StopEditor
+        entry={editedStop}
+        activities={activities.filter((a) => a.stopId === editedStop.id)}
+        lookup={lookup}
+        onClose={() => setEditingStop(null)}
+        onOpenPlace={(id) => select({ kind: 'place', id })}
+        onShowPlace={(id) => showOnMap({ kind: 'place', id })}
+        onTrains={() => trainsAfterStop(editedStop.id)}
+      />
+    )
+  else if (selectedPlace) {
+    const near = nearestStop(trip, lookup, selectedPlace)
+    body = (
+      <PlaceEditor
+        place={selectedPlace}
+        status={statusOf(selectedPlace)}
+        uses={placeUses(selectedPlace.id)}
+        nearest={near && near.stop.stop.placeId !== selectedPlace.id ? { id: near.stop.id, name: lookup.places.get(near.stop.stop.placeId)?.name ?? '' } : null}
+        onClose={() => setSelection(null)}
+        onMove={() => startPick({ kind: 'move-place', id: selectedPlace.id })}
+        onTrains={() => trainsFrom(selectedPlace.name, selectedPlace.lat, selectedPlace.lng, selectedPlace.category === 'station')}
+        onAddAsStop={() => editStop(appendStop(trip, lookup, selectedPlace))}
+        onAddToStop={(stopId) => addPlaceToStop(selectedPlace.id, stopId)}
+        onOpenStop={editStop}
+      />
+    )
+  } else if (selectedPerson)
     body = (
       <PersonEditor
         person={selectedPerson}
@@ -570,7 +733,9 @@ export default function App() {
         expenses={expenses}
         rates={rates}
         settings={settings}
-        firstDay={[...timeline.map((i) => i.date), ...Object.keys(days)].filter((d): d is string => !!d).sort()[0] ?? null}
+        trip={trip}
+        lookup={lookup}
+        hereCurrency={hereCurrency}
       />
     )
   else if (tab === 'trains')
@@ -583,8 +748,15 @@ export default function App() {
         error={trainsError}
         places={places}
         highlight={reachHighlight}
-        onOrigin={(s) => (s ? showTrains(s) : setTrainsOrigin(null))}
-        onOriginFromPlace={(p) => trainsFrom(p.name, p.lat, p.lng, p.category === 'station')}
+        onOrigin={(s) => {
+          setTrainsContext(null)
+          if (s) showTrains(s)
+          else setTrainsOrigin(null)
+        }}
+        onOriginFromPlace={(p) => {
+          setTrainsContext(null)
+          void trainsFrom(p.name, p.lat, p.lng, p.category === 'station')
+        }}
         onQuery={(q) => {
           setTrainInfo({})
           setTrainsQuery(q)
@@ -592,109 +764,101 @@ export default function App() {
         trainInfo={trainInfo}
         settings={settings}
         onShow={showDestination}
-        onAdd={(d) => {
-          setTab('places')
-          createPlace(d.lat, d.lng, d.name, 'station')
-        }}
+        onAddPlace={(d) => createPlace(d.lat, d.lng, d.name, 'station')}
+        onAddToTrip={addTrainToTrip}
+        context={trainsContext}
+        onClearContext={() => setTrainsContext(null)}
       />
     )
-  else if (tab === 'timeline')
+  else if (tab === 'trip')
     body = (
-      <TimelineView
-        items={timeline}
-        days={days}
+      <TripView
+        trip={trip}
+        activities={activities}
         lookup={lookup}
-        mapDay={mapDay}
-        highlightId={highlightItem}
-        onMapDay={setMapDay}
-        onEdit={editItem}
-        onShow={showItem}
+        settings={settings}
+        spentToday={spentToday}
+        focusStop={focusStop}
+        highlightId={tripHighlight}
+        onFocusStop={setFocusStop}
+        onEditStop={editStop}
+        onEditLine={editLine}
+        onShowStop={showStop}
+        onShowLine={showLine}
+        onFindTrains={findTrainsFor}
+        onDrawLine={() => startPick({ kind: 'line-start' })}
+        onOpenBudget={() => setTab('budget')}
       />
     )
   else
     body = (
       <>
-        {tab === 'places' && (
-          <div className="segmented view-switch">
-            <button className={placesView === 'places' ? 'active' : ''} onClick={() => setPlacesView('places')}>
-              📍 Places ({places.length})
-            </button>
-            <button className={placesView === 'lines' ? 'active' : ''} onClick={() => setPlacesView('lines')}>
-              〰️ Travel lines ({lines.length})
-            </button>
-          </div>
-        )}
-        {!(tab === 'places' && placesView === 'lines') && (
-          <>
-          <form className="search" onSubmit={runSearch}>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                if (!e.target.value) setResults(null)
-              }}
-              placeholder="Search a city, sight, address…"
-            />
-            <button type="submit">Search</button>
-          </form>
-          {searchError && <p className="muted small">{searchError}</p>}
-          {results && (
-            <ul className="list results">
-              {results.length === 0 && (
-                <li className="empty">{searching ? 'Searching…' : 'Nothing found. Try another spelling, or add the city name.'}</li>
-              )}
-              {results.map((r, i) => (
-                <li key={i}>
-                  <button className="item" onClick={() => flyTo(r.lng, r.lat, 12)}>
-                    <span className="item-main">
-                      <strong>{r.name}</strong>
-                      <span className="muted small ellipsis">{r.label}</span>
-                    </span>
-                  </button>
-                  <button
-                    className="small-btn"
-                    onClick={() => {
-                      createPlace(r.lat, r.lng, r.name)
-                      setResults(null)
-                      setQuery('')
-                      flyTo(r.lng, r.lat, 12)
-                    }}
-                  >
-                    + Add
-                  </button>
-                </li>
-              ))}
-              <li>
-                <button className="ghost small" onClick={() => { setResults(null); setQuery('') }}>Close results</button>
-              </li>
-            </ul>
-          )}
-          </>
-        )}
-        {!results && tab === 'places' && placesView === 'lines' && (
-          <LinesView
-            lines={lines}
-            lookup={lookup}
-            highlightId={lineHighlight}
-            onAdd={() => startPick({ kind: 'line-start' })}
-            onShow={showLine}
-            onEdit={editLine}
+        <div className="segmented view-switch">
+          <button className={placesView === 'places' ? 'active' : ''} onClick={() => setPlacesView('places')}>
+            📍 Places ({places.length})
+          </button>
+          <button className={placesView === 'people' ? 'active' : ''} onClick={() => setPlacesView('people')}>
+            👤 People ({people.length})
+          </button>
+        </div>
+        <form className="search" onSubmit={runSearch}>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              if (!e.target.value) setResults(null)
+            }}
+            placeholder="Search a city, sight, address…"
           />
+          <button type="submit">Search</button>
+        </form>
+        {searchError && <p className="muted small">{searchError}</p>}
+        {results && (
+          <ul className="list results">
+            {results.length === 0 && (
+              <li className="empty">{searching ? 'Searching…' : 'Nothing found. Try another spelling, or add the city name.'}</li>
+            )}
+            {results.map((r, i) => (
+              <li key={i}>
+                <button className="item" onClick={() => flyTo(r.lng, r.lat, 12)}>
+                  <span className="item-main">
+                    <strong>{r.name}</strong>
+                    <span className="muted small ellipsis">{r.label}</span>
+                  </span>
+                </button>
+                <button
+                  className="small-btn"
+                  onClick={() => {
+                    createPlace(r.lat, r.lng, r.name)
+                    setResults(null)
+                    setQuery('')
+                    flyTo(r.lng, r.lat, 12)
+                  }}
+                >
+                  + Add
+                </button>
+              </li>
+            ))}
+            <li>
+              <button className="ghost small" onClick={() => { setResults(null); setQuery('') }}>Close results</button>
+            </li>
+          </ul>
         )}
-        {!results && !(tab === 'places' && placesView === 'lines') && (
+        {!results && (
           <CollectionView
-            key={tab}
-            kind={tab === 'places' ? 'place' : 'person'}
-            items={tab === 'places' ? places : people}
+            key={placesView}
+            kind={placesView === 'places' ? 'place' : 'person'}
+            items={placesView === 'places' ? places : people}
             groups={groups}
             countryOf={countryOf}
             highlightId={highlight?.id ?? null}
-            colorByGroup={tab === 'places' ? settings.colorPlacesByGroup : settings.colorPeopleByGroup}
-            onShow={(id) => showOnMap({ kind: tab === 'places' ? 'place' : 'person', id })}
-            onEdit={(id) => select({ kind: tab === 'places' ? 'place' : 'person', id })}
-            onDelete={(item) => confirmDelete({ kind: tab === 'places' ? 'place' : 'person', id: item.id }, item.name)}
-            onAdd={tab === 'places' ? () => startPick({ kind: 'new-place' }) : createPerson}
+            colorByGroup={placesView === 'places' ? settings.colorPlacesByGroup : settings.colorPeopleByGroup}
+            statusOf={statusOf}
+            onShow={(id) => showOnMap({ kind: placesView === 'places' ? 'place' : 'person', id })}
+            onEdit={(id) => select({ kind: placesView === 'places' ? 'place' : 'person', id })}
+            onDelete={(item) => confirmDelete({ kind: placesView === 'places' ? 'place' : 'person', id: item.id }, item.name)}
+            onAdd={placesView === 'places' ? () => startPick({ kind: 'new-place' }) : createPerson}
           />
         )}
       </>
@@ -703,7 +867,7 @@ export default function App() {
   return (
     <div className="app">
       <MapView
-        places={places}
+        places={mapPlaces}
         people={people}
         settings={mapSettings}
         selection={selection ?? highlight}
@@ -712,7 +876,6 @@ export default function App() {
         onSelect={(sel) => select(sel)}
         onPick={handlePick}
         focus={focus}
-        legs={legs}
         rates={rates}
         groups={groups}
         onAddFromMap={(name, lat, lng, category) => {
@@ -721,7 +884,10 @@ export default function App() {
         }}
         reach={trainsResult}
         reachHighlight={reachHighlight}
-        onTrainsFrom={trainsFrom}
+        onTrainsFrom={(name, lat, lng, isStation) => {
+          setTrainsContext(null)
+          void trainsFrom(name, lat, lng, isStation)
+        }}
         onReachSelect={(stopId) => {
           const d = trainsResult?.destinations.find((x) => x.stopId === stopId)
           if (!d) return
@@ -738,10 +904,10 @@ export default function App() {
       <MapToolbar settings={settings} groups={groups} ratesNote={ratesNote} />
       <SyncChip />
 
-      {mapDay && !pick && (
+      {focusEntry && !pick && (
         <div className="pick-banner day-banner">
-          <span>Showing one day only</span>
-          <button onClick={() => setMapDay(null)}>Show all</button>
+          <span>Showing {lookup.places.get(focusEntry.stop.placeId)?.name || 'one stop'} only</span>
+          <button onClick={() => setFocusStop(null)}>Show all</button>
         </div>
       )}
 
@@ -768,14 +934,14 @@ export default function App() {
             <span />
           </button>
           <nav className="tabs">
-            {(['timeline', 'places', 'people', 'trains', 'budget', 'settings'] as Tab[]).map((t) => (
+            {(['trip', 'places', 'trains', 'budget', 'settings'] as Tab[]).map((t) => (
               <button
                 key={t}
-                className={tab === t && !selection && !editedItem && !editedLine ? 'active' : ''}
+                className={tab === t && !selection && !editedStop && !editedLine ? 'active' : ''}
                 onClick={() => {
                   setTab(t)
                   setSelection(null)
-                  setEditingItem(null)
+                  setEditingStop(null)
                   setEditingLine(null)
                   setSheetOpen(true)
                 }}

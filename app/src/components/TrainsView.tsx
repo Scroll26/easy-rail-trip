@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatDay } from '../dates'
+import { km } from '../trip'
 import {
   formatMinutes,
   searchStations,
@@ -28,10 +29,33 @@ interface Props {
   onOriginFromPlace: (p: Place) => void
   onQuery: (q: DirectQuery) => void
   onShow: (d: Destination) => void
-  onAdd: (d: Destination) => void
+  onAddPlace: (d: Destination) => void
+  /** Put this train into the trip (what exactly depends on `context`) */
+  onAddToTrip: (d: Destination) => void
+  /** Opened for a part of the trip */
+  context: TrainsContext | null
+  onClearContext: () => void
   trainInfo: Record<string, DirectTrainInfo | null | 'loading' | 'error'>
   settings: Settings
 }
+
+export interface TrainsContext {
+  /** Trip entry the new connection goes after */
+  afterId: string | null
+  /** Existing connection that gets this train */
+  lineId?: string
+  /** Next stop: the new connection leads there */
+  toStopId?: string
+  label: string
+  /** Where you want to go, to list the stations near it first */
+  target: { name: string; lat: number; lng: number } | null
+  travelDate: string
+  /** The travel day is too far ahead (or past), so a typical weekday is searched instead */
+  typical: boolean
+}
+
+/** Stations this close to the target count as "there" */
+const NEAR_TARGET_KM = 25
 
 const SLOTS = [
   { hour: 6, label: 'Morning', hint: 'from 06:00' },
@@ -72,7 +96,10 @@ export default function TrainsView({
   onOriginFromPlace,
   onQuery,
   onShow,
-  onAdd,
+  onAddPlace,
+  onAddToTrip,
+  context,
+  onClearContext,
   trainInfo,
   settings,
 }: Props) {
@@ -104,11 +131,56 @@ export default function TrainsView({
     ) ?? []
   const mainCount = result?.destinations.filter((d) => d.importance >= MAIN_STATION).length ?? 0
   const LIMIT = 150
-  const shown = showAll ? list : list.slice(0, LIMIT)
+  const target = context?.target
+  const nearTarget = target ? list.filter((d) => km(d, target) <= NEAR_TARGET_KM) : []
+  const rest = target ? list.filter((d) => km(d, target) > NEAR_TARGET_KM) : list
+  const shown = showAll ? rest : rest.slice(0, LIMIT)
+  const tripLabel = context?.lineId || context?.toStopId ? 'Use this train' : 'Add to the trip (with a new stop there)'
+
+  const row = (d: Destination) => (
+    <li key={d.stopId} className={highlight === d.stopId ? 'highlighted' : ''}>
+      <button className="item" onClick={() => onShow(d)}>
+        <span className="item-time reach-time">{formatMinutes(d.minutes)}</span>
+        <span className="item-main">
+          <strong className="ellipsis">{d.name}</strong>
+          {d.arrival && <span className="muted small">arrives {timeOf(d.arrival)}</span>}
+          <TrainInfoLine info={trainInfo[d.stopId]} />
+        </span>
+      </button>
+      <button
+        className="icon-btn"
+        title="Direct trains from here"
+        onClick={() => onOrigin({ name: d.name, lat: d.lat, lng: d.lng, stopId: d.stopId })}
+      >
+        🚆
+      </button>
+      <button className="icon-btn" title="Add to places" onClick={() => onAddPlace(d)}>
+        📍
+      </button>
+      <button className="small-btn trip-add" title={tripLabel} onClick={() => onAddToTrip(d)}>
+        {context?.lineId || context?.toStopId ? 'Use' : '＋ Trip'}
+      </button>
+    </li>
+  )
   const slot = SLOTS.find((s) => s.hour === query.hour) ?? SLOTS[0]
 
   return (
     <div className="trains">
+      {context && (
+        <div className="trip-context">
+          <div className="item-main">
+            <span className="muted small">For your trip</span>
+            <strong className="ellipsis">{context.label}</strong>
+            <span className="small">
+              {formatDay(context.travelDate)}
+              {context.typical && (
+                <span className="muted"> · searching a typical weekday ({formatDay(query.date)}): timetables don't cover your travel day yet</span>
+              )}
+            </span>
+          </div>
+          <button className="icon-btn" title="Not for the trip, just exploring" onClick={onClearContext}>✕</button>
+        </div>
+      )}
       <form className="search" onSubmit={search}>
         <input
           type="search"
@@ -250,33 +322,25 @@ export default function TrainsView({
                   Main stations only
                 </label>
               </div>
-              <ul className="list">
-                {shown.map((d) => (
-                  <li key={d.stopId} className={highlight === d.stopId ? 'highlighted' : ''}>
-                    <button className="item" onClick={() => onShow(d)}>
-                      <span className="item-time reach-time">{formatMinutes(d.minutes)}</span>
-                      <span className="item-main">
-                        <strong className="ellipsis">{d.name}</strong>
-                        {d.arrival && <span className="muted small">arrives {timeOf(d.arrival)}</span>}
-                        <TrainInfoLine info={trainInfo[d.stopId]} />
-                      </span>
-                    </button>
-                    <button
-                      className="icon-btn"
-                      title="Direct trains from here"
-                      onClick={() => onOrigin({ name: d.name, lat: d.lat, lng: d.lng, stopId: d.stopId })}
-                    >
-                      🚆
-                    </button>
-                    <button className="icon-btn" title="Add to places" onClick={() => onAdd(d)}>
-                      ＋
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {list.length > shown.length && (
+              {target && (
+                <>
+                  <h4 className="near-head">Near {target.name}</h4>
+                  <ul className="list">
+                    {nearTarget.length === 0 && (
+                      <li className="empty">
+                        No direct train to {target.name} at this time. Try another time of day, or look at the stations
+                        below for a change on the way.
+                      </li>
+                    )}
+                    {nearTarget.map(row)}
+                  </ul>
+                  <h4 className="near-head">Everywhere else</h4>
+                </>
+              )}
+              <ul className="list">{shown.map(row)}</ul>
+              {rest.length > shown.length && (
                 <button className="ghost" onClick={() => setShowAll(true)}>
-                  Show all {list.length}
+                  Show all {rest.length}
                 </button>
               )}
             </>

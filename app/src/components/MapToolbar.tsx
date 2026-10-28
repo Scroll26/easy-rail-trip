@@ -147,7 +147,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
       <button
         className={'toolbar-btn view-trip' + (settings.simpleView ? ' active' : '')}
         onClick={() => updateSettings({ simpleView: !settings.simpleView })}
-        title="Clean map with only your pins, country names and travel lines"
+        title="Clean map with only your pins, country names and connections"
         aria-pressed={settings.simpleView}
       >
         🧳 View trip
@@ -255,7 +255,7 @@ export default function MapToolbar({ settings, groups, ratesNote }: Props) {
               ))}
             </div>
             {check('🛣️ Streets', settings.showStreets, () => updateSettings({ showStreets: !settings.showStreets }))}
-            {check('〰️ Travel lines', settings.showTravelLines, () => updateSettings({ showTravelLines: !settings.showTravelLines }))}
+            {check('〰️ Trip connections', settings.showTravelLines, () => updateSettings({ showTravelLines: !settings.showTravelLines }))}
             {check('💱 Currencies', settings.showCurrencies, () => updateSettings({ showCurrencies: !settings.showCurrencies }))}
             {check('🎨 Pins in group colours', settings.colorPlacesByGroup && settings.colorPeopleByGroup, () => {
               const on = !(settings.colorPlacesByGroup && settings.colorPeopleByGroup)

@@ -26,10 +26,8 @@ interface Props {
   onSelect: (sel: Selection) => void
   /** A map tap while picking; `hit` says what was tapped (a pin, a station, a town) */
   onPick: (lat: number, lng: number, hit?: PickHit) => void
-  /** When set, only these markers are shown, each with its stop number */
+  /** When set, only these markers are shown, each with its number */
   focus: Map<string, number> | null
-  /** Train legs drawn as lines */
-  legs: [number, number][][]
   rates: Rates | null
   groups: Group[]
   /** A city / POI label of the basemap was tapped and the user wants it in their places */
@@ -258,11 +256,6 @@ const CURRENCY_FILL = [
   'rgba(0,0,0,0)',
 ] as unknown as maplibregl.ExpressionSpecification
 
-const legsGeoJson = (legs: [number, number][][]): GeoJSON.FeatureCollection => ({
-  type: 'FeatureCollection',
-  features: legs.map((coordinates) => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } })),
-})
-
 function loadView() {
   try {
     const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? '')
@@ -322,7 +315,6 @@ export default function MapView({
   onSelect,
   onPick,
   focus,
-  legs,
   rates,
   groups,
   onAddFromMap,
@@ -350,8 +342,6 @@ export default function MapView({
   travelRef.current = travel
   const reachRef = useRef(reach)
   reachRef.current = reach
-  const legsRef = useRef(legs)
-  legsRef.current = legs
 
   useEffect(() => {
     const view = loadView()
@@ -626,23 +616,6 @@ export default function MapView({
           'text-halo-color': '#ffffff',
           'text-halo-width': 1.5,
         },
-      })
-
-      // Trains from the timeline look like train connections
-      map.addSource('legs', { type: 'geojson', data: legsGeoJson(legsRef.current) })
-      map.addLayer({
-        id: 'legs-casing',
-        type: 'line',
-        source: 'legs',
-        layout: { 'line-cap': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.85 },
-      })
-      map.addLayer({
-        id: 'legs',
-        type: 'line',
-        source: 'legs',
-        layout: { 'line-cap': 'round' },
-        paint: { 'line-color': LINE_KINDS.train.color, 'line-width': 4 },
       })
 
       // Direct trains: a light veil over everything else so the destinations stand out
@@ -1037,11 +1010,6 @@ export default function MapView({
   }, [settings.showTravelLines, settings.simpleView, mapRef])
 
   useEffect(() => {
-    const source = mapRef.current?.getSource('legs') as maplibregl.GeoJSONSource | undefined
-    source?.setData(legsGeoJson(legs))
-  }, [legs, mapRef])
-
-  useEffect(() => {
     mapRef.current?.getCanvas().classList.toggle('picking', picking)
   }, [picking, mapRef])
 
@@ -1054,7 +1022,7 @@ export default function MapView({
       { lng: number; lat: number; title: string; render: (el: HTMLElement) => void; sel: Selection; anchor: 'bottom' | 'center' }
     >()
 
-    // A focused day overrides the layer toggles: show exactly that day's stops
+    // A focused stop overrides the layer toggles: show exactly its pins
     const showPlaces = focus ? true : settings.showPlaces
     const showPeople = focus ? true : settings.showPeople
     const hidden = new Set(settings.hiddenGroups)

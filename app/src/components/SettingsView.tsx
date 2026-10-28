@@ -41,7 +41,7 @@ export default function SettingsView({ settings }: { settings: Settings }) {
   async function upload(file: File) {
     try {
       const n = importJson(await file.text())
-      setMessage(`Imported ${n.places} places, ${n.people} people and ${n.timeline} timeline entries.`)
+      setMessage(`Imported ${n.places} places, ${n.people} people and ${n.stops} stops.`)
     } catch (e) {
       setMessage(`Import failed: ${(e as Error).message}`)
     }

@@ -40,7 +40,7 @@ Rail Planner is a *web app*: you open it in the browser once, then "install" it.
 
 ## 2. How to use it
 
-The screen has two parts: the **map**, and the **panel** with the tabs *Timeline*, *Places*, *People*, *Trains*, *Budget* and ⚙️ *Settings*.
+The screen has two parts: the **map**, and the **panel** with the tabs *Trip*, *Places*, *Trains*, *Budget* and ⚙️ *Settings*.
 
 - **On a computer**, the panel is on the left.
 - **On a phone**, the panel sits at the bottom. **Drag the tab bar up or down** (or tap the little grey bar) to make it bigger or smaller.
@@ -51,55 +51,43 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Timeline
 |---|---|
 | 📍 **Places ▾** / 🧑 **People ▾** | Show or hide pins. The **▾** menu lets you hide names or single groups |
 | 🗺️ **Map ▾** | **🎫 Interrail:** Highlight / Dim others / Off: which countries your pass covers (teal) · **🛤️ Railway lines** (on by default): switch each kind on or off (high-speed red, main lines orange, branch lines yellow, narrow gauge brown, other grey) and the station dots (tap one for its name) · **⛴️ Ferries:** ferries with an Interrail benefit, *included in the pass* (only Superfast Italy–Greece, it uses a travel day) and *discount with the pass* (Stena, Tallink Silja, Blue Star…), each switchable; tap a ferry for details · **⚙️ Other:** map text (All / Countries only / None), 🛣️ streets (off by default), 💱 currencies (colours each currency zone and shows what 1 € is worth there), 🎨 pins in group colours |
-| 🧳 **View trip** | One tap for a clean map: only your pins with names, country names and travel lines. Tap again for everything else |
+| 🧳 **View trip** | One tap for a clean map: only your pins with names, country names and your connections. Tap again for everything else |
 | **+ / −** and the **compass** | Zoom. The compass needle always points north; tap it to turn the map back to north |
 | ◎ | Show where you are right now |
 
 **Tip:** tap a city, station or sight on the map and choose **"+ Add to places"** or **"🚆 Direct trains"**.
 
-### Places
+### Trip
 
-Places are things you want to see or do: cities, sights, restaurants, hostels, stations.
+Your route as **stops** (where you sleep and for how many nights) and the **connections** between them. The dates work themselves out: set **Trip starts**, and every stop begins where the one before ends. **Stay a night longer and everything after it moves along.**
 
-- **Add one:** search for it at the top and tap **+ Add**, tap **+ Place** and then the map, or tap a name on the map.
-- **Each row** has three buttons: 🗂️ **group**, ✏️ **edit**, 🗑️ **delete**.
-- **Tap the row itself** to fly to it on the map.
-- **Reorder** by dragging the **⠿** handle on the left.
-- **Groups** (e.g. "Museums", "Must-see") get a colour. Tap the colour dot in the group list to change it.
-- The **⚲ filter** button shows only one group or one country.
+- **+ Stop:** pick a town from your places, or search for one. Each new stop gets a rough connection from the stop before.
+- **Tap a stop** to fly to it; **🗺️** shows only that stop on the map (the town, your bed and your things to do, numbered, plus the connections in and out).
+- **✏️ on a stop:** the number of nights (0 = just passing through), **where you sleep** (one of your places, a person you know, or any name) with an optional **price**, and **things to do**: your places (nearest first) and notes. Give them a day and time once you know; until then they sit under *Anytime*.
+- **Fixed dates:** pick an arrival date for a stop (a booked night train, a concert) and it stays put. If the stops before it are too short or too long, you see *"2 unplanned nights"* or *"overlaps by 1 night"*.
+- **Drag** (⠿) stops and connections to reorder them.
+- **Pass travel days:** enter how many travel days your pass has (leave it empty for a continuous pass). The trip counts the days you travel; a night train counts once.
+- **Today:** during the trip a card at the top shows tonight's bed, your next train (with ⚠ if it needs a reservation), today's things to do and today's spending.
 
-### Travel lines
+#### Connections
 
-Draw where you'll travel, in the **Places** tab under **〰️ Travel lines**:
+- **🧭 General plan** (dashed purple): roughly how you get from one stop to the next.
+- **🚆 Train connection** (solid blue): a concrete train, drawn **along the actual tracks**, with its trains, times and stops, whether **Interrail covers** each one (✓ covered, ✓ domestic only, ✕ not covered like Italo or Flixtrain, ? not on the list), and reservation needs.
+- Between two stops without a connection you'll see **"How do you get here?"**: tap **🧭 Rough plan** or **🚆 Find a train**.
+- **🚆 on a connection** opens the Trains tab for exactly that trip: from that station, on that day, with the stations near your next stop listed first. Tap **Use** and the connection becomes that train.
+- **✏️ on a connection:** night train (arrives the next day), ticket or reservation **price**, notes, swap the direction.
+- **〰️ Draw a connection on the map:** tap a start and a destination (a pin, a station dot, a town or any point). Station to station becomes a train connection.
 
-1. Tap **+ Line**.
-2. Tap the start: one of your pins, a station dot, a town on the map, or any point.
-3. Tap the destination.
+### Places and People
 
-There are two kinds, in different colours:
-- **🚆 Train connection** (solid blue): a concrete train, station to station. It's drawn **along the actual tracks**. Tap it to see its trains with times and stops, and whether **Interrail covers** each one (✓ covered, ✓ domestic only, ✕ not covered like Italo or Flixtrain, ? not on the list), plus reservation needs. Chosen automatically when you connect two stations. Trains from your timeline are blue too.
-- **🧭 General plan** (dashed purple): roughly where you want to go next, city to city.
+**Places** are things you want to see or do: cities, sights, restaurants, hostels, stations. Switch to **People** at the top of the tab for friends and family you want to visit.
 
-Tap a line on the map, or ✏️ in the list, to change its kind, swap its direction or add notes. Lines attached to pins follow them when you move the pins.
-
-### People
-
-Friends and family you want to visit. Enter their **city** (enough for the map) or their exact **address**. Tick **"I can stay with them"** and they get a green ring on the map. People can also be grouped.
-
-### Timeline
-
-Your trip day by day. **Only days you actually plan are shown**, so a long trip stays short and readable.
-
-1. Pick a date and tap **+ Day**.
-2. Add to that day:
-   - **+ Place:** something from your Places list.
-   - **+ Train:** from → to, times, and whether you need a **seat reservation**.
-   - **+ Stay:** where you sleep, and for how many nights.
-   - **+ Note:** anything else.
-3. Days in between collapse into one line, like *"4 days · 🛏️ staying with Anna"*.
-4. Things without a date yet go into **Unscheduled** at the top.
-5. **Drag** entries (⠿ handle) to reorder them or move them to another day.
-6. Tap **🗺️** on a day to see only that day on the map, numbered, with your train lines.
+- **Add a place:** search for it at the top and tap **+ Add**, tap **+ Place** and then the map, or tap a name on the map.
+- **Each row** has three buttons: 🗂️ **group**, ✏️ **edit**, 🗑️ **delete**. **Tap the row itself** to fly to it on the map. **Reorder** by dragging the **⠿** handle.
+- **Groups** (e.g. "Museums", "Must-see") get a colour. The **⚲ filter** button shows only one group or one country.
+- **Status is automatic:** a place in your trip is *Planned*, and *Visited* once that day has passed. Everything else is an *Idea* (you can mark it *Visited* yourself).
+- **In a place's editor:** **+ New stop** adds it to the end of your trip; **+ To do in …** adds it to the nearest stop.
+- **People:** enter their **city** (enough for the map) or their exact **address**. Tick **"I can stay with them"** and they get a green ring on the map, and they come first when you choose where to sleep.
 
 ### 🚆 Trains: where can I go without changing?
 
@@ -110,7 +98,9 @@ Choose a station (search it, tap a station dot on the map, or pick one of your p
 - **Only trains without compulsory reservation:** handy with an Interrail pass
 - Tap a destination (in the list or on the map) to see **which train** goes there and whether **Interrail covers it**.
 - **Fade the rest of the map** (on by default) makes the destinations stand out.
-- Tap 🚆 next to a destination to see **its** direct trains and hop along your route; tap **＋** to add it to your places.
+- Tap 🚆 next to a destination to see **its** direct trains and hop along your route; tap 📍 to add it to your places.
+- **＋ Trip** adds that train to your trip, with a new stop at the destination. Opened from the Trip tab, the button says **Use** and fills in that connection.
+- Opened from your trip, it searches your **travel day**. If that day is more than about 6 weeks away (timetables aren't published that far ahead), it searches a typical weekday instead and says so.
 
 Times count from the departure time you chose, so they include waiting for the first train. The timetables are not live, so check with the railway before you travel. Lookups you've done before also work offline.
 
@@ -122,7 +112,10 @@ Set a **daily goal** (for example 50 €) and log what you spend; the app tells 
 - **The headline** shows how much you're under or over in total since the budget started (days × goal − spent), your daily spending so far, your average per day, the **total including one-off costs**, and today's spending. Tap ⚙️ in that card to set the daily goal and the start date.
 - **Per day:** one bar per day with the goal marked; days over the goal turn red with ⚠. Tap a day to see and edit its expenses.
 - **One-off costs** (the pass, prepaid hostels…): tick *One-off cost* so they don't spoil your daily numbers. They're listed and totalled separately.
-- The budget starts on your first timeline day unless you set a start date (⚙️ in the headline card).
+- The budget starts with your trip unless you set a start date (⚙️ in the headline card).
+- **Local currency:** while you're on the trip, a new expense starts in the currency of the country you're in.
+- **Whole trip:** days × your daily goal, plus one-off costs paid, plus **bookings not paid yet** (the bed and ticket prices from your stops and connections). Tap **✓ Paid** when you've paid one; it becomes a one-off expense.
+- **Per stop:** what each stop cost you so far, in total and per day.
 
 ### Settings ⚙️
 
@@ -162,7 +155,7 @@ In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. You
 | The map is grey offline | Only areas you looked at while online are saved for offline use. Browse your route once before leaving |
 | Search doesn't work | Search needs internet. Offline you can still tap **+ Place** and then the map |
 | Sync says "Tap to sync" | Normal after about an hour. Tap it once to reconnect |
-| Does it need internet? | Your own trip (places, people, timeline, lines, budget) always works offline. Internet is needed for: map areas you haven't looked at yet, search, new direct-train lookups and train routes, fresh exchange rates and sync. Things you already looked up stay available offline |
+| Does it need internet? | Your own trip (places, people, stops, connections, budget) always works offline. Internet is needed for: map areas you haven't looked at yet, search, new direct-train lookups and train routes, fresh exchange rates and sync. Things you already looked up stay available offline |
 | How much storage does it use? | The trip itself is tiny. Saved map areas take the most space (usually tens of MB, at most a few hundred), are capped and cleaned up automatically, and can be cleared in Settings |
 
 ---

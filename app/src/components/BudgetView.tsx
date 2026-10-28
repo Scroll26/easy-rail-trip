@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { categoryOf, EXPENSE_CATEGORIES, formatEur, formatMoney, summarize, toEur } from '../budget'
+import { categoryOf, EXPENSE_CATEGORIES, formatEur, formatMoney, recordPaid, summarize, toEur } from '../budget'
 import { CURRENCY_STYLE } from '../data/currencies'
-import { daysBetween, formatDay, today as todayDate } from '../dates'
+import { daysBetween, formatDay, formatShort, today as todayDate } from '../dates'
 import type { Rates } from '../rates'
-import { deleteExpense, newId, saveExpense, updateSettings } from '../store'
+import { lineTitle } from '../lines'
+import { deleteExpense, newId, saveExpense, saveLine, saveStop, updateSettings } from '../store'
+import { stayName, tripLines, tripStops, type Lookup, type Trip } from '../trip'
 import type { Expense, ExpenseCategory, Settings } from '../types'
 
 const LAST_CURRENCY_KEY = 'rail-planner:last-currency'
@@ -21,12 +23,16 @@ interface Props {
   expenses: Expense[]
   rates: Rates | null
   settings: Settings
-  /** First day of the timeline, the default budget start */
-  firstDay: string | null
+  trip: Trip
+  lookup: Lookup
+  /** Currency of the country you're in (from the trip), the default for new expenses */
+  hereCurrency: string | null
 }
 
-export default function BudgetView({ expenses, rates, settings, firstDay }: Props) {
+export default function BudgetView({ expenses, rates, settings, trip, lookup, hereCurrency }: Props) {
   const today = todayDate()
+  const stops = tripStops(trip)
+  const firstDay = stops.length && trip.dated ? trip.start : null
   const start = settings.budgetStart ?? firstDay ?? expenses[expenses.length - 1]?.date ?? today
   const s = useMemo(
     () => summarize(expenses, rates, settings.budgetDaily, start, today),
@@ -90,8 +96,8 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
               </div>
               <p className="muted small">
                 {settings.budgetStart
-                  ? 'Clear the date to start with your first timeline day again.'
-                  : `No date set, so it starts with ${firstDay ? 'your first timeline day' : 'your first expense'} (${formatDay(start)}).`}
+                  ? 'Clear the date to start with your trip again.'
+                  : `No date set, so it starts with ${firstDay ? 'your trip' : 'your first expense'} (${formatDay(start)}).`}
               </p>
             </div>
           )}
@@ -172,8 +178,8 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
               </div>
               <p className="muted small">
                 {settings.budgetStart
-                  ? 'Clear the date to start with your first timeline day again.'
-                  : `No date set, so it starts with ${firstDay ? 'your first timeline day' : 'your first expense'} (${formatDay(start)}).`}
+                  ? 'Clear the date to start with your trip again.'
+                  : `No date set, so it starts with ${firstDay ? 'your trip' : 'your first expense'} (${formatDay(start)}).`}
               </p>
             </div>
           )}
@@ -186,7 +192,15 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
         </p>
       )}
 
-      <ExpenseForm key={editing?.id ?? 'new'} editing={editing} rates={rates} onDone={() => setEditing(null)} />
+      <ExpenseForm
+        key={editing?.id ?? 'new'}
+        editing={editing}
+        rates={rates}
+        hereCurrency={hereCurrency}
+        onDone={() => setEditing(null)}
+      />
+
+      {stops.length > 0 && <Forecast trip={trip} lookup={lookup} goal={s.goal} oneOffTotal={s.oneOffTotal} spent={s.spent} />}
 
       {/* Per day */}
       {s.days.length > 0 && (
@@ -227,6 +241,42 @@ export default function BudgetView({ expenses, rates, settings, firstDay }: Prop
             })}
           </ul>
           <p className="muted small">Tap a day to see its expenses. The thin line marks your daily goal.</p>
+        </section>
+      )}
+
+      {/* Per stop */}
+      {stops.some((st) => st.arrive <= today) && (
+        <section>
+          <h3>Per stop</h3>
+          <ul className="list">
+            {stops
+              .filter((st) => st.arrive <= today)
+              .map((st) => {
+                const last = st.depart > today ? today : st.depart
+                let sum = 0
+                for (const [date, list] of byDay)
+                  if (date >= st.arrive && (date < st.depart || (st.stop.nights === 0 && date === st.arrive)))
+                    for (const e of list) sum += toEur(e, rates) ?? 0
+                const n = Math.max(1, daysBetween(st.arrive, last) + (st.depart > today ? 1 : 0))
+                const perDay = sum / n
+                return (
+                  <li key={st.id} className="stop-spend">
+                    <span className="item-main">
+                      <strong className="ellipsis">{lookup.places.get(st.stop.placeId)?.name || 'Unnamed'}</strong>
+                      <span className="muted small">
+                        {formatShort(st.arrive)} · {n} {n === 1 ? 'day' : 'days'}
+                        {st.depart > today ? ' so far' : ''}
+                      </span>
+                    </span>
+                    <span className="stop-amount">
+                      <b>{formatEur(sum, 0)}</b>
+                      <span className={'small ' + (perDay > s.goal ? 'warn-text' : 'muted')}>{formatEur(perDay, 0)}/day</span>
+                    </span>
+                  </li>
+                )
+              })}
+          </ul>
+          <p className="muted small">Daily expenses only. A day you travel counts for the stop you arrive at.</p>
         </section>
       )}
 
@@ -272,9 +322,19 @@ function ExpenseRow({ e, rates, onEdit, showDate }: { e: Expense; rates: Rates |
   )
 }
 
-function ExpenseForm({ editing, rates, onDone }: { editing: Expense | null; rates: Rates | null; onDone: () => void }) {
+function ExpenseForm({
+  editing,
+  rates,
+  hereCurrency,
+  onDone,
+}: {
+  editing: Expense | null
+  rates: Rates | null
+  hereCurrency: string | null
+  onDone: () => void
+}) {
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '')
-  const [currency, setCurrency] = useState(editing?.currency ?? lastCurrency())
+  const [currency, setCurrency] = useState(editing?.currency ?? (hereCurrency && CURRENCIES.includes(hereCurrency) ? hereCurrency : lastCurrency()))
   const [category, setCategory] = useState<ExpenseCategory | null>(editing?.category ?? null)
   const [note, setNote] = useState(editing?.note ?? '')
   const [date, setDate] = useState(editing?.date ?? todayDate())
@@ -344,6 +404,11 @@ function ExpenseForm({ editing, rates, onDone }: { editing: Expense | null; rate
         </button>
       </div>
       {preview && <span className="muted small">{preview}</span>}
+      {!editing && hereCurrency && hereCurrency !== currency && CURRENCIES.includes(hereCurrency) && (
+        <button type="button" className="ghost small link-btn" onClick={() => setCurrency(hereCurrency)}>
+          Use {hereCurrency}, the local currency
+        </button>
+      )}
       <div className="chips cat-chips">
         {(Object.keys(EXPENSE_CATEGORIES) as ExpenseCategory[]).map((c) => (
           <button
@@ -372,5 +437,77 @@ function ExpenseForm({ editing, rates, onDone }: { editing: Expense | null; rate
         </button>
       )}
     </form>
+  )
+}
+
+/** What the whole trip will cost: daily goal × days, one-offs, and bookings not paid yet */
+function Forecast({ trip, lookup, goal, oneOffTotal, spent }: { trip: Trip; lookup: Lookup; goal: number; oneOffTotal: number; spent: number }) {
+  const days = daysBetween(trip.start, trip.end) + 1
+  const planned = [
+    ...tripStops(trip)
+      .filter((st) => st.stop.stay?.price && !st.stop.stay.paidExpenseId)
+      .map((st) => ({
+        id: st.id,
+        icon: '🛏️',
+        name: stayName(st.stop, lookup) || lookup.places.get(st.stop.placeId)?.name || 'Accommodation',
+        date: st.arrive,
+        price: st.stop.stay!.price!,
+        pay: () =>
+          saveStop({
+            ...st.stop,
+            stay: { ...st.stop.stay!, paidExpenseId: recordPaid(st.stop.stay!.price!, st.arrive, 'stay', stayName(st.stop, lookup) || 'Accommodation') },
+          }),
+      })),
+    ...tripLines(trip)
+      .filter((l) => l.line.price && !l.line.paidExpenseId)
+      .map((l) => ({
+        id: l.id,
+        icon: '🚆',
+        name: lineTitle(l.line, lookup),
+        date: l.date,
+        price: l.line.price!,
+        pay: () => saveLine({ ...l.line, paidExpenseId: recordPaid(l.line.price!, l.date, 'transport', lineTitle(l.line, lookup)) }),
+      })),
+  ].sort((a, b) => a.date.localeCompare(b.date))
+  const plannedTotal = planned.reduce((sum, p) => sum + p.price, 0)
+  const daily = goal * days
+
+  return (
+    <section className="forecast">
+      <h3>Whole trip · {formatEur(daily + oneOffTotal + plannedTotal, 0)}</h3>
+      <dl className="forecast-grid">
+        <dt>
+          {days} days × {formatEur(goal)}
+        </dt>
+        <dd>{formatEur(daily, 0)}</dd>
+        <dt>One-off costs paid</dt>
+        <dd>{formatEur(oneOffTotal, 0)}</dd>
+        <dt>Bookings not paid yet</dt>
+        <dd>{formatEur(plannedTotal, 0)}</dd>
+        <dt className="muted">Spent so far (daily)</dt>
+        <dd className="muted">{formatEur(spent, 0)}</dd>
+      </dl>
+      {planned.length > 0 && (
+        <ul className="list">
+          {planned.map((p) => (
+            <li key={p.id}>
+              <span className="item-icon plain">{p.icon}</span>
+              <span className="item-main">
+                <strong className="ellipsis">{p.name}</strong>
+                <span className="muted small">{formatDay(p.date)}</span>
+              </span>
+              <b>{formatEur(p.price)}</b>
+              <button className="small-btn" title="Paid: add it to your expenses" onClick={p.pay}>
+                ✓ Paid
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="muted small">
+        Prices of beds and tickets come from the stops and connections in your trip. Once paid, they move to the one-off
+        costs.
+      </p>
+    </section>
   )
 }

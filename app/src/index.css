@@ -312,41 +312,68 @@ textarea { resize: vertical; }
 .settings h3 { margin: 4px 0 6px; }
 .country-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 10px; margin: 10px 0; font-size: 14px; }
 
-/* ---------- Timeline ---------- */
-.add-day { margin-bottom: 14px; flex-wrap: nowrap; }
-.add-day input { flex: 1; }
-.timeline .empty { padding: 8px 4px; line-height: 1.5; }
-
-.day {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 10px 12px 12px;
-  margin-bottom: 10px;
-  background: var(--bg);
-}
-.day.unscheduled { background: var(--bg-2); border-style: dashed; margin-bottom: 18px; }
-.day.on-map { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-.day-head { display: flex; align-items: center; gap: 4px; }
-.day-head > div { flex: 1; min-width: 0; }
-.day-head .icon-btn { width: 34px; height: 34px; }
+/* ---------- Trip ---------- */
+.trip { display: flex; flex-direction: column; gap: 10px; }
+.trip .empty { padding: 8px 4px; line-height: 1.5; }
+.trip-settings .field input { min-width: 0; }
+.trip-summary { margin: -2px 0 0; }
+.trip-actions { margin-top: 4px; }
+.trip .line-legend { flex-direction: row; gap: 14px; flex-wrap: wrap; }
 .icon-btn.active { background: var(--accent); border-color: var(--accent); }
-.day-title {
-  border: none;
-  border-bottom: 1px dashed var(--border);
-  border-radius: 0;
-  padding: 4px 0;
-  margin: 2px 0 6px;
-  font-weight: 600;
-  background: transparent;
-}
-.day-title:focus { outline: none; border-bottom-color: var(--accent); }
-.continuing { margin: 4px 0; }
+.warn-text { color: #b45309; }
+@media (prefers-color-scheme: dark) { .warn-text { color: #fbbf24; } }
+.cov-text { font-weight: 600; }
+.cov-text.good { color: #15803d; }
+.cov-text.warn { color: #b45309; }
+.cov-text.bad { color: #dc2626; }
+.cov-text.neutral { color: var(--muted); }
 
-.day-items { min-height: 8px; border-radius: 8px; }
-.day-items.drop-over { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.day-items li { background: var(--bg); touch-action: manipulation; }
-.day.unscheduled .day-items li { background: var(--bg-2); }
-.day-items li.drop-hint { display: block; padding: 8px 4px; border: none; background: transparent; }
+.list li.trip-li { display: block; border-bottom: none; background: var(--bg); }
+.trip-entry { display: flex; flex-direction: column; }
+.trip-row { display: flex; align-items: center; gap: 4px; border-radius: 12px; }
+.trip-li.stop .trip-row { border: 1px solid var(--border); padding-right: 4px; margin: 4px 0; }
+.trip-li.line .trip-row { margin-left: 22px; padding-left: 8px; border-left: 3px solid var(--border); border-radius: 0 12px 12px 0; }
+.trip-li.highlighted .trip-row { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.trip-li.on-map .trip-row { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.trip-row .item-main > span { display: block; }
+.stop-icon { background: color-mix(in srgb, var(--accent) 18%, var(--bg)); }
+.connector.missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 2px 22px;
+  padding: 4px 0 4px 10px;
+  border-left: 3px dotted var(--border);
+}
+.connector .small-btn { border-radius: 999px; }
+
+.today-card {
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--accent);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+}
+.today-card.before { border-left-color: var(--person); }
+.today-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.today-list button { display: block; padding: 4px 0; text-align: left; white-space: normal; }
+
+.stop-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.stop-title h3 { margin: 0; }
+.stepper { display: flex; gap: 4px; }
+.stepper input { text-align: center; min-width: 0; }
+.stepper button { flex: none; width: 40px; justify-content: center; }
+.link-btn.inline { padding: 0; display: inline; font-size: inherit; }
+.activity-day h4 { margin: 8px 0 2px; color: var(--muted); font-size: 13px; }
+.list li.activity { gap: 4px; }
+.time-input { flex: none; width: 92px; padding: 6px; font-size: 13px; }
+.note-input { flex: 1; min-width: 0; }
+.day-select { flex: none; width: auto; max-width: 128px; padding: 6px; font-size: 13px; }
+.price-paid { justify-content: space-between; }
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
+.line-date { margin: -6px 0 0; }
+
 .drag-handle {
   flex: none;
   border: none;
@@ -359,34 +386,11 @@ textarea { resize: vertical; }
 }
 .item-time { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; min-width: 40px; }
 .item-icon.plain { background: var(--bg-2); }
-.item-icon.type-train { background: #fed7aa; }
-.item-icon.type-stay { background: #ddd6fe; }
-.drag-overlay {
-  background: var(--bg);
-  border: 1px solid var(--accent);
-  box-shadow: var(--shadow);
-  cursor: grabbing;
-  padding: 8px 10px;
-  width: 100%;
-}
-
 .add-bar { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
 .add-bar button { padding: 5px 9px; font-size: 13px; border-radius: 999px; }
 
-.gap {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin: -2px 10px 8px;
-  padding: 6px 10px;
-  border-left: 3px dotted var(--border);
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .picker { display: flex; flex-direction: column; gap: 10px; }
 .picker h4 { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
-.picker-other { border: 1px dashed var(--border); }
 
 .row.two { flex-wrap: nowrap; }
 .row.two > * { flex: 1; min-width: 0; }
@@ -706,3 +710,23 @@ button.danger.solid { background: var(--danger); color: #fff; border-color: var(
   }
   .modal { max-height: calc(100dvh - 32px); overflow-y: auto; }
 }
+
+/* ---------- Trains for the trip ---------- */
+.trip-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  border-radius: 12px;
+  padding: 8px 6px 8px 12px;
+}
+.near-head { margin: 10px 0 2px; color: var(--muted); font-size: 13px; }
+.trip-add { flex: none; border-radius: 999px; white-space: nowrap; }
+
+/* ---------- Budget: forecast and stops ---------- */
+.forecast-grid { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0 0 8px; font-size: 14px; }
+.forecast-grid dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.forecast .list li { padding: 6px 0; }
+.list li.stop-spend { padding: 8px 4px; }
+.stop-amount { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; }
