@@ -228,6 +228,8 @@ export interface Stop {
   fixedDate: string | null
   stay: StayInfo | null
   notes: string
+  /** "How do you get here?" was dismissed while this stop came after that stop */
+  skipConnectionFrom?: string | null
   /** Position in the trip, shared with the connections (TravelLine.order) */
   order: number
   createdAt: number

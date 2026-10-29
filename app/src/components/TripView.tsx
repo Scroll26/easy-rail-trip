@@ -116,12 +116,22 @@ export default function TripView(props: Props) {
       )
     return (
       <div className="trip-entry">
-        {prev?.kind === 'stop' && !readOnly && (
+        {prev?.kind === 'stop' && !readOnly && e.stop.skipConnectionFrom !== prev.id && (
           <div className="connector missing">
-            <span className="muted small">How do you get here?</span>
-            <button className="small-btn" onClick={() => connect(prev, e)}>🧭 Rough plan</button>
-            <button className="small-btn" onClick={() => onFindTrains({ afterId: prev.id, toStopId: e.id })}>
-              🚆 Find a train
+            <span className="connector-options">
+              <span className="muted small">How do you get here?</span>
+              <button className="small-btn" onClick={() => connect(prev, e)}>🧭 Rough plan</button>
+              <button className="small-btn" onClick={() => onFindTrains({ afterId: prev.id, toStopId: e.id })}>
+                🚆 Find a train
+              </button>
+            </span>
+            <button
+              className="icon-btn connector-skip"
+              title="Not now"
+              aria-label="Hide this question for now"
+              onClick={() => saveStop({ ...e.stop, skipConnectionFrom: prev.id })}
+            >
+              ✕
             </button>
           </div>
         )}
@@ -373,7 +383,7 @@ function StopPicker({ trip, lookup, onDone }: { trip: Trip; lookup: Lookup; onDo
     .sort((a, b) => rank(a) - rank(b) || Number(inTrip.has(a.id)) - Number(inTrip.has(b.id)))
 
   function addStop(place: Place) {
-    appendStop(trip, lookup, place)
+    appendStop(place)
     onDone()
   }
 

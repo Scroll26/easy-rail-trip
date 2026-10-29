@@ -1,5 +1,5 @@
 import { addDays, daysBetween, formatDay, today as todayDate } from './dates'
-import { listOrder, newId, nextTripOrder, saveLine, saveStop } from './store'
+import { listOrder, newId, nextTripOrder, saveStop } from './store'
 import { currentRoute, resolveEndpoint } from './lines'
 import type { Activity, Person, Place, PlaceStatus, Stop, TravelLine } from './types'
 
@@ -215,23 +215,10 @@ export function stopEndpoint(stop: Stop, lookup: Lookup) {
   return resolveEndpoint({ placeId: stop.placeId, name: p?.name ?? '', lat: p?.lat ?? 0, lng: p?.lng ?? 0 }, lookup)
 }
 
-/** Adds a stop at the end of the trip, with a rough plan from the stop before. Returns its id. */
-export function appendStop(trip: Trip, lookup: Lookup, place: Place) {
+/** Adds a stop at the end of the trip (the trip then asks how you get there). Returns its id. */
+export function appendStop(place: Place) {
   const now = Date.now()
-  const last = trip.entries[trip.entries.length - 1]
-  const order = nextTripOrder()
   const id = newId()
-  saveStop({ id, placeId: place.id, nights: 1, fixedDate: null, stay: null, notes: '', order: order + 1, createdAt: now, updatedAt: now })
-  if (last?.kind === 'stop')
-    saveLine({
-      id: newId(),
-      kind: 'plan',
-      from: stopEndpoint(last.stop, lookup),
-      to: { placeId: place.id, name: place.name, lat: place.lat, lng: place.lng },
-      notes: '',
-      order,
-      createdAt: now,
-      updatedAt: now,
-    })
+  saveStop({ id, placeId: place.id, nights: 1, fixedDate: null, stay: null, notes: '', order: nextTripOrder(), createdAt: now, updatedAt: now })
   return id
 }

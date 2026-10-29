@@ -746,7 +746,7 @@ export default function App() {
         onClose={() => setSelection(null)}
         onMove={() => startPick({ kind: 'move-place', id: selectedPlace.id })}
         onTrains={() => trainsFrom(selectedPlace.name, selectedPlace.lat, selectedPlace.lng, selectedPlace.category === 'station')}
-        onAddAsStop={() => editStop(appendStop(trip, lookup, selectedPlace))}
+        onAddAsStop={() => editStop(appendStop(selectedPlace))}
         onAddToStop={(stopId) => addPlaceToStop(selectedPlace.id, stopId)}
         onOpenStop={editStop}
       />

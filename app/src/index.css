@@ -342,7 +342,6 @@ textarea { resize: vertical; }
 .stop-icon { background: color-mix(in srgb, var(--accent) 18%, var(--bg)); }
 .connector.missing {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin: 2px 0 2px 22px;
@@ -350,6 +349,8 @@ textarea { resize: vertical; }
   border-left: 3px dotted var(--border);
 }
 .connector .small-btn { border-radius: 999px; }
+.connector-options { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.connector .connector-skip { flex: none; width: 28px; height: 28px; font-size: 13px; }
 
 .today-card {
   border: 1px solid var(--border);

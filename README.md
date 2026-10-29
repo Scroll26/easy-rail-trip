@@ -65,7 +65,7 @@ The screen has two parts: the **map**, and the **panel** with the tabs *Trip*, *
 
 Your route as **stops** (where you sleep and for how many nights) and the **connections** between them. The dates work themselves out: set **Trip starts**, and every stop begins where the one before ends. **Stay a night longer and everything after it moves along.**
 
-- **+ Stop:** pick a town from your places, or search for one. Each new stop gets a rough connection from the stop before.
+- **+ Stop:** pick a town from your places, or search for one. The trip then asks how you get there (see below).
 - **Tap a stop** to fly to it; **🗺️** shows only that stop on the map (the town, your bed and your things to do, numbered, plus the connections in and out).
 - **✏️ on a stop:** the number of nights (0 = just passing through), **where you sleep** (one of your places, a person you know, or any name) with an optional **price**, and **things to do**: your places (nearest first) and notes. Give them a day and time once you know; until then they sit under *Anytime*.
 - **Fixed dates (optional):** give a stop an arrival date, or a connection a departure date (a booked train, a concert), and it stays put (📌). Everything after it follows from that date. If the stop before doesn't fit, you see *"2 unplanned nights"* or *"overlaps by 1 night"* and a button that fixes it in one tap (*"Stay 2 more nights in Vienna"*). Clear a fixed date with *"Leave when the stop before ends instead"*.
@@ -77,7 +77,7 @@ Your route as **stops** (where you sleep and for how many nights) and the **conn
 
 - **🧭 General plan** (dashed purple): roughly how you get from one stop to the next.
 - **🚆 Train connection** (solid blue): a concrete train, drawn **along the actual tracks**, with its trains, times and stops, whether **Interrail covers** each one (✓ covered, ✓ domestic only, ✕ not covered like Italo or Flixtrain, ? not on the list), and reservation needs.
-- Between two stops without a connection you'll see **"How do you get here?"**: tap **🧭 Rough plan** or **🚆 Find a train**.
+- Between two stops without a connection you'll see **"How do you get here?"**: tap **🧭 Rough plan** or **🚆 Find a train**, or **✕** if you don't know yet. It asks again if you move the stop somewhere else.
 - **🚆 on a connection** opens the Trains tab for exactly that trip: from that station, on that day, with the stations near your next stop listed first. Tap **Use** and the connection becomes that train.
 - **Tap a connection on the map** to open it in the Trip tab. While it's open, the map draws **each train in its own colour** (matching its card) with the stations where you change; tap a section on the map to pick that train.
 - **Each train in its own section:** a train connection lists its trains one by one (from where to where, how long, operator, Interrail coverage, reservations), with the changes in between (*⇄ Change · 6 min*). **Tap a train** to highlight just that part of the route on the map (pink), or **tap a station** (also the stops in between) to jump to it. Tap again to clear.
