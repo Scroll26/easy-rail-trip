@@ -310,6 +310,9 @@ textarea { resize: vertical; }
 
 .settings section { margin-bottom: 26px; }
 .settings h3 { margin: 4px 0 6px; }
+.settings .support { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--bg-2); }
+.settings .support p { margin: 0; flex: 1; }
+.settings .support .button { flex: none; }
 .country-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 10px; margin: 10px 0; font-size: 14px; }
 
 /* ---------- Trip ---------- */

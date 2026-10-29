@@ -51,6 +51,15 @@ export default function SettingsView({ settings }: { settings: Settings }) {
 
   return (
     <div className="settings">
+      <section className="support">
+        <p className="small">
+          ☕ Rail Planner is free and made in my spare time. If it helps your trip, you can buy me a coffee.
+        </p>
+        <a className="button" href="https://ko-fi.com/scrollanimation" target="_blank" rel="noreferrer">
+          ☕ Support on Ko-fi
+        </a>
+      </section>
+
       <SyncSection />
 
       <ShareSection share={settings.share} />
@@ -121,6 +130,9 @@ export default function SettingsView({ settings }: { settings: Settings }) {
           </a>
           <a className="button" href={import.meta.env.BASE_URL + 'privacy.html'} target="_blank" rel="noreferrer">
             🔒 Privacy policy
+          </a>
+          <a className="button" href={import.meta.env.BASE_URL + 'impressum.html'} target="_blank" rel="noreferrer">
+            Impressum
           </a>
         </div>
       </section>

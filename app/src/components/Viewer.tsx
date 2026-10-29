@@ -256,7 +256,10 @@ export default function Viewer({ initial }: { initial: LoadedShare }) {
           {!line && !stopEntry && (
             <p className="muted small share-foot">
               Shared with Rail Planner.{' '}
-              <a href={import.meta.env.BASE_URL}>Open your own trip</a>
+              <a href={import.meta.env.BASE_URL}>Open your own trip</a> ·{' '}
+              <a href={import.meta.env.BASE_URL + 'impressum.html'} target="_blank" rel="noreferrer">
+                Impressum
+              </a>
             </p>
           )}
         </div>

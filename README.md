@@ -4,6 +4,8 @@ A free trip planner for Interrail journeys through Europe. Put the places you wa
 
 **👉 Open the app: https://scroll26.github.io/rail-planner/**
 
+☕ Like it? You can [support it on Ko-fi](https://ko-fi.com/scrollanimation).
+
 > **🚧 Still in development.** Rail Planner is a hobby project that is being built right now. Features, how things look and how your data is stored may change at any time, sometimes without notice, and things can break. Export a backup (⚙️ Settings → Export backup) now and then, and always check train times, prices and Interrail coverage with the railway before you travel. The app comes without any warranty (see the [licence](LICENSE)).
 
 - **Free.** No account, no ads, no subscription.
@@ -179,6 +181,8 @@ In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. You
 ## Licence
 
 Rail Planner is open source under the [MIT licence](LICENSE): you may use, change and share the code, as long as the copyright notice stays in it.
+
+[Impressum](https://scroll26.github.io/rail-planner/impressum.html) · [Privacy policy](https://scroll26.github.io/rail-planner/privacy.html)
 
 ## For developers
 

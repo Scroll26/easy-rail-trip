@@ -34,7 +34,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,geojson}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // Static pages that must not be replaced by the app shell
-        navigateFallbackDenylist: [/privacy\.html$/],
+        navigateFallbackDenylist: [/privacy\.html$/, /impressum\.html$/],
         runtimeCaching: [
           {
             // Basemap style, tiles, fonts and sprites: keep everything we have seen for offline use
