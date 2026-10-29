@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import * as Y from 'yjs'
 import { doc, persistence } from '../store'
 import * as drive from './drive'
-import { currentToken, forgetToken, isConfigured, requestToken, revoke } from './googleAuth'
+import { currentToken, forgetToken, isConfigured, requestToken, revoke, silentToken, validToken } from './googleAuth'
 import { peekRemote, REMOTE_ORIGIN, syncDoc, type RemoteStore } from './merge'
 
 // Google Drive sync: when to sync, sign-in handling and the status shown in the UI.
@@ -90,14 +90,23 @@ export async function syncNow(interactive = false): Promise<void> {
         set({ status: 'offline' })
         return
       }
-      let token = currentToken()
+      let token = await validToken()
       if (!token && interactive) token = await requestToken(false)
       if (!token) {
         set({ status: 'needs-auth' })
         return
       }
       set({ status: 'syncing', error: '' })
-      await syncDoc(doc, driveStore(token))
+      try {
+        await syncDoc(doc, driveStore(token))
+      } catch (e) {
+        // Token ended early (e.g. revoked elsewhere): one silent retry with a new one
+        if (!(e instanceof drive.AuthError)) throw e
+        forgetToken()
+        const fresh = await silentToken()
+        if (!fresh) throw e
+        await syncDoc(doc, driveStore(fresh))
+      }
       prefs = { ...prefs, lastSync: Date.now() }
       writePrefs(prefs)
       set({ status: 'idle', lastSync: prefs.lastSync })
@@ -187,7 +196,7 @@ export async function deleteLocalData(): Promise<never> {
 
 /** Delete the trip file from Google Drive (asks to sign in if needed), then this device */
 export async function deleteEverywhere(): Promise<never> {
-  const token = currentToken() ?? (await requestToken(false))
+  const token = (await validToken()) ?? (await requestToken(false))
   const file = await drive.findFile(token)
   if (file) await drive.remove(token, file.id)
   await revoke()
