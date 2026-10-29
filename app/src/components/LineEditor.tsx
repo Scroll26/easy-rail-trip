@@ -1,6 +1,7 @@
 import { avoidedOnRoute, avoidOf, currentRoute, LINE_KINDS, lineTitle, type RouteFocus } from '../lines'
 import { countryNames, useCountries } from '../countries'
 import AvoidCountries from './AvoidCountries'
+import EndpointField from './EndpointField'
 import RouteLegs from './RouteLegs'
 import PriceField from './PriceField'
 import GapNotice from './GapNotice'
@@ -22,10 +23,12 @@ interface Props {
   /** The train or station highlighted on the map */
   routeFocus: RouteFocus | null
   onRouteFocus: (f: RouteFocus | null) => void
+  /** Tap the new start / end on the map */
+  onPickEnd: (end: 'from' | 'to') => void
 }
 
 /** A connection of the trip: a concrete train, or a general plan of where to go next */
-export default function LineEditor({ line, trip, entry, lookup, routeFailed, onClose, onFindTrains, routeFocus, onRouteFocus }: Props) {
+export default function LineEditor({ line, trip, entry, lookup, routeFailed, onClose, onFindTrains, routeFocus, onRouteFocus, onPickEnd }: Props) {
   const set = (patch: Partial<TravelLine>) => saveLine({ ...line, ...patch })
   const route = currentRoute(line, lookup)
   const title = lineTitle(line, lookup)
@@ -35,6 +38,9 @@ export default function LineEditor({ line, trip, entry, lookup, routeFailed, onC
   const through = route?.countries ?? []
   const stillIn = avoidedOnRoute(line, lookup)
   const atEnds = avoid.filter((iso) => iso === through[0] || iso === through[through.length - 1])
+  // The stops this connection sits between, offered first as its ends
+  const at = trip.entries.findIndex((e) => e.id === line.id)
+  const near = [trip.entries[at - 1], trip.entries[at + 1]].flatMap((e) => (e?.kind === 'stop' ? [e.stop.placeId] : []))
   const sameAsDefault = [...avoid].sort().join() === [...lookup.avoid].sort().join()
   return (
     <div className="editor">
@@ -43,6 +49,10 @@ export default function LineEditor({ line, trip, entry, lookup, routeFailed, onC
         <span className="muted">Connection · saved automatically</span>
       </div>
       <h3 className="line-title">{title}</h3>
+      <div className="endpoints">
+        <EndpointField label="From" value={line.from} lookup={lookup} suggested={near} onChange={(from) => set({ from })} onPickOnMap={() => onPickEnd('from')} />
+        <EndpointField label="To" value={line.to} lookup={lookup} suggested={near} onChange={(to) => set({ to })} onPickOnMap={() => onPickEnd('to')} />
+      </div>
       {entry && (
         <>
           <div className="row two">

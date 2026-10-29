@@ -89,6 +89,7 @@ type Pick =
   | { kind: 'person'; id: string }
   | { kind: 'line-start' }
   | { kind: 'line-end'; from: Endpoint; fromStation: boolean }
+  | { kind: 'move-line-end'; lineId: string; end: 'from' | 'to' }
   | null
 
 const NEW_PLACE_NAME = 'New place'
@@ -600,6 +601,14 @@ export default function App() {
       setPick({ kind: 'line-end', from: await endpointFor(lat, lng, hit), fromStation: !!hit?.station })
       return
     }
+    if (pick.kind === 'move-line-end') {
+      setPick(null)
+      setSheetOpen(true)
+      const ep = await endpointFor(lat, lng, hit)
+      const line = getLine(pick.lineId)
+      if (line) saveLine({ ...line, [pick.end]: ep })
+      return
+    }
     if (pick.kind === 'line-end') {
       setPick(null)
       setSheetOpen(true)
@@ -723,6 +732,10 @@ export default function App() {
         }}
         routeFocus={routeFocus}
         onRouteFocus={focusRoute}
+        onPickEnd={(end) => {
+          setRouteFocus(null)
+          startPick({ kind: 'move-line-end', lineId: editedLine.id, end })
+        }}
         onFindTrains={() => {
           const i = trip.entries.findIndex((e) => e.id === editedLine.id)
           const prev = trip.entries[i - 1]
@@ -973,6 +986,7 @@ export default function App() {
             {pick.kind === 'person' && 'Tap the map where this person is'}
             {pick.kind === 'line-start' && 'Line: tap the start (pin, station, town or any point)'}
             {pick.kind === 'line-end' && `From ${pick.from.name}: now tap the destination`}
+            {pick.kind === 'move-line-end' && `Tap the new ${pick.end === 'from' ? 'start' : 'end'} (pin, station, town or any point)`}
           </span>
           <button onClick={() => { setPick(null); setSheetOpen(true) }}>Cancel</button>
         </div>
