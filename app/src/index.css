@@ -343,14 +343,18 @@ textarea { resize: vertical; }
 .connector.missing {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 2px 0 2px 22px;
-  padding: 4px 0 4px 10px;
+  gap: 4px;
+  margin: 2px 0 2px 10px;
+  padding: 4px 0 4px 8px;
   border-left: 3px dotted var(--border);
 }
 .connector .small-btn { border-radius: 999px; }
-.connector-options { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.connector .connector-skip { flex: none; width: 28px; height: 28px; font-size: 13px; }
+.connector-options { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.connector .connector-skip { flex: none; width: 26px; height: 26px; padding: 0; font-size: 12px; }
+/* Too narrow for one row on phones: the question above, both buttons below */
+@media (max-width: 799px) {
+  .connector-options > .muted { flex-basis: 100%; }
+}
 
 .today-card {
   border: 1px solid var(--border);
