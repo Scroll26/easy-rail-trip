@@ -143,7 +143,7 @@ Set a **daily goal** (for example 50 €) and log what you spend; the app tells 
 In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. Your trip is then saved in a **hidden app folder in your own Google Drive**. Only Rail Planner can see that folder; it doesn't touch your other files. Do the same on your other devices and they all share one trip.
 
 - Changes sync automatically when you're online, and changes made offline are merged later. Nothing gets overwritten, even if you edited on two devices at once.
-- For security, Google only lets the app stay signed in for about an hour at a time. After that, a small **"Tap to sync"** button appears. One tap reconnects; you usually won't have to type anything.
+- **You stay signed in.** A small sign-in helper (a free Cloudflare Worker, `auth-worker/`) renews Google's one-hour access in the background, so there's no popup. It holds the app's Google secret and gives your browser an encrypted key that only it can read; it stores nothing itself. If the helper can't be reached, or you cleared the browser's data, a small **"Tap to sync"** button appears instead, and one tap reconnects.
 
 ### Backup / move without Google
 
@@ -159,7 +159,7 @@ In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. You
 | A new version isn't showing | Close the app completely and open it again while online, twice if needed |
 | The map is grey offline | Only areas you looked at while online are saved for offline use. Browse your route once before leaving |
 | Search doesn't work | Search needs internet. Offline you can still tap **+ Place** and then the map |
-| Sync says "Tap to sync" | Normal after about an hour. Tap it once to reconnect |
+| Sync says "Tap to sync" | The background sign-in didn't work (offline helper, cleared browser data, or access removed in your Google account). Tap it once to reconnect |
 | Does it need internet? | Your own trip (places, people, stops, connections, budget) always works offline. Internet is needed for: map areas you haven't looked at yet, search, new direct-train lookups and train routes, fresh exchange rates and sync. Things you already looked up stay available offline |
 | How much storage does it use? | The trip itself is tiny. Saved map areas take the most space (usually tens of MB, at most a few hundred), are capped and cleaned up automatically, and can be cleared in Settings |
 
