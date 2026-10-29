@@ -4,6 +4,8 @@ A free trip planner for Interrail journeys through Europe. Put the places you wa
 
 **👉 Open the app: https://scroll26.github.io/rail-planner/**
 
+> **🚧 Still in development.** Rail Planner is a hobby project that is being built right now. Features, how things look and how your data is stored may change at any time, sometimes without notice, and things can break. Export a backup (⚙️ Settings → Export backup) now and then, and always check train times, prices and Interrail coverage with the railway before you travel. The app comes without any warranty (see the [licence](LICENSE)).
+
 - **Free.** No account, no ads, no subscription.
 - **Works offline.** Once installed, it opens and works without signal (search and new map areas need internet).
 - **Private.** Your trip is stored on your own device, not on any server. You can optionally sync it through your own Google Drive.
