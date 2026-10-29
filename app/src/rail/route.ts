@@ -10,7 +10,7 @@ const API = 'https://api.transitous.org/api'
 const MODES = 'HIGHSPEED_RAIL,LONG_DISTANCE,NIGHT_RAIL,REGIONAL_FAST_RAIL,REGIONAL_RAIL,RAIL,FERRY'
 
 /** Bump when RouteLeg gets new fields, so stored routes are looked up again */
-export const ROUTE_VERSION = 4
+export const ROUTE_VERSION = 5
 
 export interface RailRoute {
   path: [number, number][]
@@ -177,6 +177,21 @@ function densify(points: [number, number][]) {
   return out
 }
 
+/**
+ * Some timetables have no track shapes, so their trains come as straight lines from stop to stop.
+ * Real tracks have a point at least every few km; a route mostly made of longer jumps doesn't.
+ */
+function followsTracks(path: [number, number][]) {
+  let total = 0
+  let jumps = 0
+  for (let i = 1; i < path.length; i++) {
+    const d = km({ lat: path[i - 1][1], lng: path[i - 1][0] }, { lat: path[i][1], lng: path[i][0] })
+    total += d
+    if (d > 5) jumps += d
+  }
+  return !total || jumps / total < 0.15
+}
+
 function km(a: Point, b: Point) {
   const rad = Math.PI / 180
   const x = (b.lng - a.lng) * rad * Math.cos(((a.lat + b.lat) / 2) * rad)
@@ -194,16 +209,19 @@ export async function railRoute(from: Point, to: Point, avoid: string[] = []): P
   const ends = new Set([countryAt(shapes, from.lat, from.lng)?.iso, countryAt(shapes, to.lat, to.lng)?.iso])
   // Where the trip starts or ends can't be avoided
   const banned = avoid.filter((iso) => !ends.has(iso))
-  const options = await plan(from, to, { numItineraries: banned.length ? '5' : '1' })
+  const options = await plan(from, to, { numItineraries: '5' })
   if (!options.length) return null
-  if (!banned.length) return toRoute(options[0], countriesAlong(shapes, fullPath(options[0])))
 
   const check = (legs: Leg[]) => {
-    const countries = countriesAlong(shapes, fullPath(legs))
-    return { legs, countries, ok: !countries.some((c) => banned.includes(c)) }
+    const path = fullPath(legs)
+    const countries = countriesAlong(shapes, path)
+    return { legs, countries, ok: !countries.some((c) => banned.includes(c)), smooth: followsTracks(path) }
   }
-  const first = check(options[0])
-  const clean = [first, ...options.slice(1).map(check)].find((o) => o.ok)
+  // The planner's order, but routes drawn along the tracks before ones drawn stop to stop
+  const pick = (list: ReturnType<typeof check>[]) => list.find((o) => o.ok && o.smooth) ?? list.find((o) => o.ok)
+  const rated = options.map(check)
+  const first = rated[0]
+  const clean = pick(rated)
   if (clean) return toRoute(clean.legs, clean.countries)
 
   // Via one or two hubs: only where the straight line between them stays out of the avoided
@@ -225,7 +243,7 @@ export async function railRoute(from: Point, to: Point, avoid: string[] = []): P
   for (const t of tries.slice(0, 4)) {
     const ids = await Promise.all(t.via.map(hubId))
     if (ids.some((id) => !id)) continue
-    const found = (await plan(from, to, { via: ids.join(','), numItineraries: '3' }).catch(() => [])).map(check).find((o) => o.ok)
+    const found = pick((await plan(from, to, { via: ids.join(','), numItineraries: '3' }).catch(() => [])).map(check))
     if (found) return toRoute(found.legs, found.countries)
   }
   return toRoute(first.legs, first.countries)
