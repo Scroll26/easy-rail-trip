@@ -328,7 +328,7 @@ export function exportJson() {
 /** Merges a backup into the current trip; items with the same id are overwritten. */
 export function importJson(text: string) {
   const data = JSON.parse(text)
-  if (data.app !== 'rail-planner') throw new Error('Not a Rail Planner backup file')
+  if (data.app !== 'rail-planner') throw new Error('Not an Easy Rail Trip backup file')
   doc.transact(() => {
     for (const p of data.places ?? []) places.set(p.id, p)
     for (const p of data.people ?? []) people.set(p.id, p)

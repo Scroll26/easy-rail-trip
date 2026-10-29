@@ -15,8 +15,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'Rail Planner',
-        short_name: 'Rail Planner',
+        name: 'Easy Rail Trip',
+        short_name: 'Easy Rail Trip',
         description: 'Offline-first Interrail trip planner',
         theme_color: '#0f766e',
         background_color: '#0f172a',

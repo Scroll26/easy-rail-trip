@@ -1,4 +1,4 @@
-// Rail Planner sign-in helper (Cloudflare Worker).
+// Easy Rail Trip sign-in helper (Cloudflare Worker).
 //
 // Browser-only apps get Google access tokens that last an hour, and a new one needs a
 // popup. This Worker holds the OAuth client secret, so it can trade the one-time sign-in

@@ -783,3 +783,13 @@ button.danger.solid { background: var(--danger); color: #fff; border-color: var(
 .forecast .list li { padding: 6px 0; }
 .list li.stop-spend { padding: 8px 4px; }
 .stop-amount { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; }
+
+/* Import places from other apps */
+.import-places .list-head h3 { margin: 0; flex: 1; }
+.import-sources { padding-left: 18px; margin: 4px 0 12px; }
+.import-sources li { margin-bottom: 4px; }
+.import-preview { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.import-preview p { margin: 0; }
+.import-layers { display: flex; flex-direction: column; gap: 6px; padding-left: 4px; }
+.import-places progress { width: 100%; margin: 6px 0 10px; }
+.import-btn { margin-top: 10px; }

@@ -77,7 +77,7 @@ export default function Viewer({ initial }: { initial: LoadedShare }) {
   // Start with the list half open and the whole trip in view
   const setSheetOpen = sheet.setOpen
   useEffect(() => {
-    document.title = 'Shared trip · Rail Planner'
+    document.title = 'Shared trip · Easy Rail Trip'
     setSheetOpen(true)
     const at: [number, number][] = drawnLines(lines, lookup).flatMap((l) => l.coords)
     for (const s of stops) {
@@ -255,7 +255,7 @@ export default function Viewer({ initial }: { initial: LoadedShare }) {
           {body}
           {!line && !stopEntry && (
             <p className="muted small share-foot">
-              Shared with Rail Planner.{' '}
+              Shared with Easy Rail Trip.{' '}
               <a href={import.meta.env.BASE_URL}>Open your own trip</a> ·{' '}
               <a href={import.meta.env.BASE_URL + 'impressum.html'} target="_blank" rel="noreferrer">
                 Impressum
@@ -275,7 +275,7 @@ export function ShareError({ message }: { message: string }) {
       <h2>🔗 Shared trip</h2>
       <p>{message}</p>
       <a className="button" href={import.meta.env.BASE_URL}>
-        Open Rail Planner
+        Open Easy Rail Trip
       </a>
     </div>
   )

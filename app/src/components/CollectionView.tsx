@@ -4,6 +4,7 @@ import { listOrder, savePerson, savePlace } from '../store'
 import { between } from '../trip'
 import { NO_GROUP, type Group, type Person, type Place, type PlaceStatus } from '../types'
 import GroupPicker from './GroupPicker'
+import ImportPlaces from './ImportPlaces'
 import SortableRows from './SortableRows'
 
 type Item = Place | Person
@@ -45,6 +46,7 @@ export default function CollectionView({
   const [groupFilter, setGroupFilter] = useState(ALL)
   const [countryFilter, setCountryFilter] = useState(ALL)
   const [groupFor, setGroupFor] = useState<Item | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const isPlace = kind === 'place'
   const kindGroups = groups.filter((g) => g.kind === kind)
@@ -76,6 +78,9 @@ export default function CollectionView({
     return haystack.toLowerCase().includes(q)
   })
   const activeFilters = Number(groupFilter !== ALL) + Number(countryFilter !== ALL)
+
+  if (importing)
+    return <ImportPlaces places={items as Place[]} groups={groups} onClose={() => setImporting(false)} />
 
   if (groupFor) {
     const current = items.find((i) => i.id === groupFor.id) ?? groupFor
@@ -160,7 +165,7 @@ export default function CollectionView({
       {items.length === 0 && (
         <p className="empty muted">
           {isPlace
-            ? 'No places yet. Tap + Place and then the map, or search above.'
+            ? 'No places yet. Tap + Place and then the map, search above, or import the places you saved in another app.'
             : 'Add the people you want to visit. They get their own markers on the map.'}
         </p>
       )}
@@ -240,6 +245,12 @@ export default function CollectionView({
           )
         }}
       />
+
+      {isPlace && (
+        <button className="ghost small import-btn" onClick={() => setImporting(true)}>
+          ⬆ Import places from Google Maps, My Maps, GPX or CSV…
+        </button>
+      )}
     </>
   )
 }

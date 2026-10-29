@@ -1,12 +1,12 @@
-# Rail Planner
+# Easy Rail Trip
 
 A free trip planner for Interrail journeys through Europe. Put the places you want to see and the people you want to visit on a map, plan your days, and keep everything with you, even without internet.
 
-**👉 Open the app: https://scroll26.github.io/rail-planner/**
+**👉 Open the app: https://scroll26.github.io/easy-rail-trip/**
 
 ☕ Like it? You can [support it on Ko-fi](https://ko-fi.com/scrollanimation).
 
-> **🚧 Still in development.** Rail Planner is a hobby project that is being built right now. Features, how things look and how your data is stored may change at any time, sometimes without notice, and things can break. Export a backup (⚙️ Settings → Export backup) now and then, and always check train times, prices and Interrail coverage with the railway before you travel. The app comes without any warranty (see the [licence](LICENSE)).
+> **🚧 Still in development.** Easy Rail Trip is a hobby project that is being built right now. Features, how things look and how your data is stored may change at any time, sometimes without notice, and things can break. Export a backup (⚙️ Settings → Export backup) now and then, and always check train times, prices and Interrail coverage with the railway before you travel. The app comes without any warranty (see the [licence](LICENSE)).
 
 - **Free.** No account, no ads, no subscription.
 - **Works offline.** Once installed, it opens and works without signal (search and new map areas need internet).
@@ -17,16 +17,16 @@ A free trip planner for Interrail journeys through Europe. Put the places you wa
 
 ## 1. Install it
 
-Rail Planner is a *web app*: you open it in the browser once, then "install" it. After that it has its own icon and opens full-screen like any other app. You don't need an app store, and installing takes a few seconds.
+Easy Rail Trip is a *web app*: you open it in the browser once, then "install" it. After that it has its own icon and opens full-screen like any other app. You don't need an app store, and installing takes a few seconds.
 
 > You can also just use it in a normal browser tab without installing. Installing makes it easier to find and better at working offline.
 
 ### Android (Chrome)
 
-1. Open **https://scroll26.github.io/rail-planner/** in **Chrome**.
+1. Open **https://scroll26.github.io/easy-rail-trip/** in **Chrome**.
 2. Tap the **⋮** menu (top right).
 3. Tap **"Install app"** (on some phones: **"Add to Home screen"** → **"Install"**).
-4. The Rail Planner icon is now on your home screen and in your app list.
+4. The Easy Rail Trip icon is now on your home screen and in your app list.
 
 ### iPhone / iPad (Safari)
 
@@ -37,7 +37,7 @@ Rail Planner is a *web app*: you open it in the browser once, then "install" it.
 ### Windows / Mac (Chrome or Edge)
 
 1. Open the link in **Chrome** or **Microsoft Edge**.
-2. Click the **install icon** at the right end of the address bar (a small screen with a down-arrow), or open the browser menu → **"Install Rail Planner"** (Edge: **Apps → Install this site as an app**).
+2. Click the **install icon** at the right end of the address bar (a small screen with a down-arrow), or open the browser menu → **"Install Easy Rail Trip"** (Edge: **Apps → Install this site as an app**).
 3. It opens in its own window. You'll find it in the Start menu or Launchpad.
 
 ---
@@ -95,6 +95,13 @@ Your route as **stops** (where you sleep and for how many nights) and the **conn
 - **Groups** (e.g. "Museums", "Must-see") get a colour. The **⚲ filter** button shows only one group or one country.
 - **Status is automatic:** a place in your trip is *Planned*, and *Visited* once that day has passed. Everything else is an *Idea* (you can mark it *Visited* yourself).
 - **In a place's editor:** **+ New stop** adds it to the end of your trip; **+ To do in …** adds it to the nearest stop.
+- **Import places from another app:** tap **⬆ Import places…** below the list. First export them in the other app:
+  - **Google My Maps:** map menu ⋮ → *Export to KML/KMZ*. Each layer becomes a group.
+  - **Google Maps saved lists:** [takeout.google.com](https://takeout.google.com) → *Saved* (one CSV per list) or *Maps (your places)* (JSON).
+  - **GPS / hiking apps, Google Earth:** GPX or KML waypoints.
+  - **A spreadsheet:** CSV with a *name* column and *latitude*/*longitude* or an *address* column.
+
+  Places without coordinates (e.g. in Google's CSV lists) are found by their name, about one per second; check them afterwards. Places already on your map are skipped. Routes and areas aren't imported.
 - **People:** enter their **city** (enough for the map) or their exact **address**. Tick **"I can stay with them"** and they get a green ring on the map, and they come first when you choose where to sleep.
 
 ### 🚆 Trains: where can I go without changing?
@@ -140,11 +147,11 @@ Set a **daily goal** (for example 50 €) and log what you spend; the app tells 
 - Nothing is sent to us, except a trip you choose to share (see below).
 - **Uninstalling the app or clearing the browser data deletes your trip** unless you've synced it or exported a backup.
 - ⚙️ **Settings → Data & storage** shows how much space the app uses, can clear saved map areas, and can **delete your trip** on this device or everywhere (incl. Google Drive). It tells you before deleting whether the data can be recovered.
-- Full details: [Privacy policy](https://scroll26.github.io/rail-planner/privacy.html)
+- Full details: [Privacy policy](https://scroll26.github.io/easy-rail-trip/privacy.html)
 
 ### Sync between phone and computer (Google Drive)
 
-In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. Your trip is then saved in a **hidden app folder in your own Google Drive**. Only Rail Planner can see that folder; it doesn't touch your other files. Do the same on your other devices and they all share one trip.
+In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. Your trip is then saved in a **hidden app folder in your own Google Drive**. Only Easy Rail Trip can see that folder; it doesn't touch your other files. Do the same on your other devices and they all share one trip.
 
 - Changes sync automatically when you're online, and changes made offline are merged later. Nothing gets overwritten, even if you edited on two devices at once.
 - **You stay signed in.** A small sign-in helper (a free Cloudflare Worker, `auth-worker/`) renews Google's one-hour access in the background, so there's no popup. It holds the app's Google secret and gives your browser an encrypted key that only it can read; it stores nothing itself. If the helper can't be reached, or you cleared the browser's data, a small **"Tap to sync"** button appears instead, and one tap reconnects.
@@ -180,9 +187,9 @@ In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. You
 
 ## Licence
 
-Rail Planner is open source under the [MIT licence](LICENSE): you may use, change and share the code, as long as the copyright notice stays in it.
+Easy Rail Trip is open source under the [MIT licence](LICENSE): you may use, change and share the code, as long as the copyright notice stays in it.
 
-[Impressum](https://scroll26.github.io/rail-planner/impressum.html) · [Privacy policy](https://scroll26.github.io/rail-planner/privacy.html)
+[Impressum](https://scroll26.github.io/easy-rail-trip/impressum.html) · [Privacy policy](https://scroll26.github.io/easy-rail-trip/privacy.html)
 
 ## For developers
 

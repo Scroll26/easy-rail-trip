@@ -35,7 +35,7 @@ export default function SettingsView({ settings }: { settings: Settings }) {
     const blob = new Blob([exportJson()], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `rail-planner-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `easy-rail-trip-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -53,7 +53,7 @@ export default function SettingsView({ settings }: { settings: Settings }) {
     <div className="settings">
       <section className="support">
         <p className="small">
-          ☕ Rail Planner is free and made in my spare time. If it helps your trip, you can buy me a coffee.
+          ☕ Easy Rail Trip is free and made in my spare time. If it helps your trip, you can buy me a coffee.
         </p>
         <a className="button" href="https://ko-fi.com/scrollanimation" target="_blank" rel="noreferrer">
           ☕ Support on Ko-fi
@@ -121,11 +121,11 @@ export default function SettingsView({ settings }: { settings: Settings }) {
       <section>
         <h3>About</h3>
         <p className="muted small">
-          Rail Planner is free and open source. No account, no tracking: your trip stays on your devices (and in your own
+          Easy Rail Trip is free and open source. No account, no tracking: your trip stays on your devices (and in your own
           Google Drive if you sync).
         </p>
         <div className="row">
-          <a className="button" href="https://github.com/Scroll26/rail-planner#readme" target="_blank" rel="noreferrer">
+          <a className="button" href="https://github.com/Scroll26/easy-rail-trip#readme" target="_blank" rel="noreferrer">
             ❓ How to use
           </a>
           <a className="button" href={import.meta.env.BASE_URL + 'privacy.html'} target="_blank" rel="noreferrer">

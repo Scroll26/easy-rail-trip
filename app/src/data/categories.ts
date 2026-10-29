@@ -17,3 +17,9 @@ export const STATUSES: Record<PlaceStatus, { label: string; color: string }> = {
   planned: { label: 'Planned', color: '#0f766e' },
   visited: { label: 'Visited', color: '#b45309' },
 }
+
+/** Colours new groups get, in turn */
+export const GROUP_COLORS = [
+  '#2563eb', '#db2777', '#16a34a', '#ea580c', '#7c3aed', '#0891b2',
+  '#ca8a04', '#dc2626', '#0f766e', '#9333ea', '#65a30d', '#475569',
+]
