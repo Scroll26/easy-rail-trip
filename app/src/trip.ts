@@ -1,4 +1,4 @@
-import { addDays, daysBetween, today as todayDate } from './dates'
+import { addDays, daysBetween, formatDay, today as todayDate } from './dates'
 import { listOrder, newId, nextTripOrder, saveLine, saveStop } from './store'
 import { currentRoute, resolveEndpoint } from './lines'
 import type { Activity, Person, Place, PlaceStatus, Stop, TravelLine } from './types'
@@ -112,6 +112,14 @@ export const stopDays = (stop: StopEntry) => Math.max(1, stop.stop.nights + 1)
 
 /** Day of an activity within its stop; a stop that got shorter moves it to its last day */
 export const activityDay = (a: Activity, stop: StopEntry) => (a.day == null ? null : Math.min(a.day, stopDays(stop) - 1))
+
+/** "Day 2 · Tue 3 Jun", or "Anytime" for activities without a day */
+export function stopDayLabel(stop: StopEntry, d: number | null) {
+  if (d == null) return 'Anytime'
+  const days = stopDays(stop)
+  const extra = d === 0 ? ' · arrival' : d === days - 1 && days > 1 ? ' · leaving' : ''
+  return `Day ${d + 1} · ${formatDay(addDays(stop.arrive, d))}${extra}`
+}
 
 /** Calendar day of an activity, or null when it's "sometime during the stop" */
 export function activityDate(a: Activity, stop: StopEntry) {

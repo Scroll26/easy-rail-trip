@@ -8,7 +8,10 @@ import type { Activity, Expense, Group, Person, Place, Settings, Stop, TravelLin
 // later the same document is merged via Google Drive, so offline edits on several
 // devices combine without conflicts.
 export const doc = new Y.Doc()
-export const persistence = new IndexeddbPersistence('rail-planner-trip', doc)
+
+/** Opened from a shared link: someone else's trip, read-only and only in memory, so this device's own trip stays untouched */
+export const viewingShare = /^#(share|trip)=/.test(location.hash)
+export const persistence = viewingShare ? null : new IndexeddbPersistence('rail-planner-trip', doc)
 
 const places = doc.getMap<Place>('places')
 const people = doc.getMap<Person>('people')
@@ -20,7 +23,7 @@ const lines = doc.getMap<TravelLine>('lines')
 const expenses = doc.getMap<Expense>('expenses')
 
 // The old day-by-day timeline was replaced by stops + activities; drop its leftovers
-void persistence.whenSynced.then(() =>
+void persistence?.whenSynced.then(() =>
   doc.transact(() => {
     for (const name of ['timeline', 'days']) doc.getMap(name).clear()
   }),
@@ -68,6 +71,30 @@ const DEFAULT_SETTINGS: Settings = {
   showStations: true,
   colorPlacesByGroup: true,
   colorPeopleByGroup: true,
+  share: null,
+}
+
+/** What the map shows: everything as set in the Map menu, or with "View trip" on only what its options allow */
+export function mapSettingsFor(settings: Settings): Settings {
+  if (!settings.simpleView) return settings
+  const v = settings.tripView
+  // Ferries switched off in the Map menu come back too, so "Ferries" shows something
+  const ferriesOff = !settings.showFerriesIncluded && !settings.showFerriesDiscount
+  return {
+    ...settings,
+    interrailMode: v.interrail ? (settings.interrailMode === 'off' ? 'highlight' : settings.interrailMode) : 'off',
+    showRailways: v.railways,
+    showStreets: v.streets,
+    showCurrencies: v.currencies,
+    mapLabels: v.mapLabels,
+    showPlaces: v.places,
+    showPeople: v.people,
+    showPlaceLabels: v.pinNames,
+    showPeopleLabels: v.pinNames,
+    showTravelLines: v.connections,
+    showFerriesIncluded: v.ferries && (ferriesOff || settings.showFerriesIncluded),
+    showFerriesDiscount: v.ferries && (ferriesOff || settings.showFerriesDiscount),
+  }
 }
 
 export const newId = () =>
@@ -238,6 +265,8 @@ export function updateSettings(patch: Partial<Settings>) {
   })
 }
 
+export const getShare = () => (settings.get('share') as Settings['share'] | undefined) ?? null
+
 export function getPlace(id: string) {
   return places.get(id)
 }
@@ -248,24 +277,52 @@ export function getPerson(id: string) {
 
 // ---- Backup: plain JSON export / import ----
 
+export interface TripData {
+  places: Place[]
+  people: Person[]
+  stops: Stop[]
+  activities: Activity[]
+  groups: Group[]
+  lines: TravelLine[]
+  expenses: Expense[]
+  settings: Partial<Settings>
+}
+
+/** Everything, as plain data */
+export function tripData(): TripData {
+  return {
+    places: [...places.values()],
+    people: [...people.values()],
+    stops: [...stops.values()],
+    activities: [...activities.values()],
+    groups: [...groups.values()],
+    lines: [...lines.values()],
+    expenses: [...expenses.values()],
+    settings: Object.fromEntries(settings.entries()),
+  }
+}
+
+/** Replaces everything with `data` (for showing a shared trip; never used on your own trip) */
+export function replaceTrip(data: Partial<TripData>) {
+  doc.transact(() => {
+    const fill = <T extends { id: string }>(map: Y.Map<T>, items: T[] = []) => {
+      map.clear()
+      for (const x of items) map.set(x.id, x)
+    }
+    fill(places, data.places)
+    fill(people, data.people)
+    fill(stops, data.stops)
+    fill(activities, data.activities)
+    fill(groups, data.groups)
+    fill(lines, data.lines)
+    fill(expenses, data.expenses)
+    settings.clear()
+    for (const [k, v] of Object.entries(data.settings ?? {})) settings.set(k, v)
+  })
+}
+
 export function exportJson() {
-  return JSON.stringify(
-    {
-      app: 'rail-planner',
-      version: 2,
-      exportedAt: new Date().toISOString(),
-      places: [...places.values()],
-      people: [...people.values()],
-      stops: [...stops.values()],
-      activities: [...activities.values()],
-      groups: [...groups.values()],
-      lines: [...lines.values()],
-      expenses: [...expenses.values()],
-      settings: Object.fromEntries(settings.entries()),
-    },
-    null,
-    2,
-  )
+  return JSON.stringify({ app: 'rail-planner', version: 2, exportedAt: new Date().toISOString(), ...tripData() }, null, 2)
 }
 
 /** Merges a backup into the current trip; items with the same id are overwritten. */

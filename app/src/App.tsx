@@ -8,12 +8,14 @@ import PlaceEditor from './components/PlaceEditor'
 import PersonEditor from './components/PersonEditor'
 import SettingsView from './components/SettingsView'
 import TripView from './components/TripView'
+import ShareView from './components/ShareView'
 import StopEditor from './components/StopEditor'
 import CollectionView from './components/CollectionView'
 import MapToolbar from './components/MapToolbar'
 import { countryAt, useCountries } from './countries'
 import { useRates } from './rates'
 import { useBottomSheet } from './useBottomSheet'
+import { fitPath, isPhone } from './mapFit'
 import { SyncChip } from './components/SyncSection'
 import TrainsView, { type TrainsContext } from './components/TrainsView'
 import BudgetView from './components/BudgetView'
@@ -51,6 +53,7 @@ import {
   saveLine,
   saveStop,
   getLine,
+  mapSettingsFor,
   useActivities,
   useExpenses,
   useLines,
@@ -60,7 +63,7 @@ import {
   useSettings,
   useStops,
 } from './store'
-import type { Endpoint, Person, Place, PlaceCategory, Selection, Settings, TravelLine } from './types'
+import type { Endpoint, Person, Place, PlaceCategory, Selection, TravelLine } from './types'
 
 type Tab = 'trip' | 'places' | 'trains' | 'budget' | 'settings'
 
@@ -82,7 +85,6 @@ function nextWeekday() {
 /** How far ahead published timetables reliably reach; later travel days search a typical weekday */
 const TIMETABLE_DAYS = 45
 
-const isPhone = () => window.matchMedia('(max-width: 799px)').matches
 type Pick =
   | { kind: 'new-place' }
   | { kind: 'move-place'; id: string }
@@ -118,6 +120,7 @@ export default function App() {
   /** Stop shown alone on the map (its map button) */
   const [focusStop, setFocusStop] = useState<string | null>(null)
   const [placesView, setPlacesView] = useState<'places' | 'people'>('places')
+  const [sharing, setSharing] = useState(false)
   const [editingLine, setEditingLine] = useState<string | null>(null)
   // A train or station of the open connection, highlighted on the map
   const [routeFocus, setRouteFocus] = useState<RouteFocus | null>(null)
@@ -255,27 +258,7 @@ export default function App() {
   }, [lines, lookup])
 
   // View trip: a clean map with only what its options allow
-  const mapSettings: Settings = useMemo(() => {
-    if (!settings.simpleView) return settings
-    const v = settings.tripView
-    // Ferries switched off in the Map menu come back too, so "Ferries" shows something
-    const ferriesOff = !settings.showFerriesIncluded && !settings.showFerriesDiscount
-    return {
-      ...settings,
-      interrailMode: v.interrail ? (settings.interrailMode === 'off' ? 'highlight' : settings.interrailMode) : 'off',
-      showRailways: v.railways,
-      showStreets: v.streets,
-      showCurrencies: v.currencies,
-      mapLabels: v.mapLabels,
-      showPlaces: v.places,
-      showPeople: v.people,
-      showPlaceLabels: v.pinNames,
-      showPeopleLabels: v.pinNames,
-      showTravelLines: v.connections,
-      showFerriesIncluded: v.ferries && (ferriesOff || settings.showFerriesIncluded),
-      showFerriesDiscount: v.ferries && (ferriesOff || settings.showFerriesDiscount),
-    }
-  }, [settings])
+  const mapSettings = useMemo(() => mapSettingsFor(settings), [settings])
   // Direct-train results only while the Trains tab is open (they're kept for when you come back)
   const trainsOpen = tab === 'trains' && !selection && !editingStop && !editingLine
   const hideReach = !trainsOpen || (settings.simpleView && !settings.tripView.directTrains)
@@ -409,14 +392,6 @@ export default function App() {
     setTripHighlight(id)
     setTab('trip')
     setSheetOpen(true)
-  }
-
-  /** Fit the map to a path, keeping it clear of the half-open list on the phone */
-  function fitPath(path: [number, number][], maxZoom: number) {
-    const map = mapRef.current
-    if (!map || !path.length) return
-    const padding = isPhone() ? { top: 70, left: 40, right: 40, bottom: window.innerHeight * 0.5 + 30 } : 80
-    map.fitBounds(path.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(path[0], path[0])), { padding, maxZoom })
   }
 
   function addPlaceToStop(placeId: string, stopId: string) {
@@ -686,7 +661,7 @@ export default function App() {
     if (!line) return
     const a = resolveEndpoint(line.from, lookup)
     const b = resolveEndpoint(line.to, lookup)
-    fitPath([[a.lng, a.lat], ...(currentRoute(line, lookup)?.path ?? []), [b.lng, b.lat]], 11)
+    fitPath(mapRef.current, [[a.lng, a.lat], ...(currentRoute(line, lookup)?.path ?? []), [b.lng, b.lat]], 11)
   }
 
   /** Highlight a train or station of the open connection and bring it into view */
@@ -697,7 +672,7 @@ export default function App() {
     // On the phone the list stays open at half height, so keep the map part above it clear
     const phone = isPhone()
     if (phone && sheet.state === 'full') sheet.setState('half')
-    if (f.path?.length) fitPath(f.path, 13)
+    if (f.path?.length) fitPath(map, f.path, 13)
     else if (f.points.length) map.easeTo({ center: f.points[0].at, zoom: Math.max(12, map.getZoom()), offset: [0, phone ? -window.innerHeight * 0.25 : 0] })
   }
 
@@ -831,6 +806,7 @@ export default function App() {
         onClearContext={() => setTrainsContext(null)}
       />
     )
+  else if (tab === 'trip' && sharing) body = <ShareView share={settings.share} onClose={() => setSharing(false)} />
   else if (tab === 'trip')
     body = (
       <TripView
@@ -849,6 +825,7 @@ export default function App() {
         onFindTrains={findTrainsFor}
         onDrawLine={() => startPick({ kind: 'line-start' })}
         onOpenBudget={() => setTab('budget')}
+        onShare={() => setSharing(true)}
       />
     )
   else
@@ -1008,6 +985,7 @@ export default function App() {
                 className={tab === t && !selection && !editedStop && !editedLine ? 'active' : ''}
                 onClick={() => {
                   setTab(t)
+                  setSharing(false)
                   setSelection(null)
                   setEditingStop(null)
                   setEditingLine(null)

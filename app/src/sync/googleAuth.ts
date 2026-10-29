@@ -95,7 +95,8 @@ function keepToken(token: string, expiresIn = 3600) {
   }
 }
 
-function session() {
+/** The lasting sign-in from the helper, if this device has one */
+export function session() {
   try {
     return localStorage.getItem(SESSION_KEY)
   } catch {

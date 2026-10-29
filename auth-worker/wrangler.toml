@@ -1,6 +1,7 @@
 # Sign-in helper for Google Drive sync (see src/index.ts).
 # Deploy: npx wrangler deploy (from this folder)
 # Secrets, set once: npx wrangler secret put GOOGLE_CLIENT_SECRET / SESSION_KEY
+# Storage for shared trips, once: npx wrangler kv namespace create SHARES --binding SHARES --update-config
 name = "rail-planner-auth"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"

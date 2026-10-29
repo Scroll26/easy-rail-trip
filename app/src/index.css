@@ -373,6 +373,20 @@ textarea { resize: vertical; }
 .price-paid { justify-content: space-between; }
 .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
 .date-text { padding: 9px 0; }
+
+/* Sharing */
+.share-view section { margin: 14px 0; }
+.share-view h3 { margin: 0 0 4px; }
+.link-box { display: flex; flex-direction: column; gap: 6px; }
+.link-box input { font-size: 13px; }
+.share-head { display: flex; flex-direction: column; gap: 1px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.share-foot { margin-top: 16px; }
+.detail-facts { display: flex; flex-direction: column; gap: 4px; }
+.detail-facts p { margin: 0; }
+.notes-text { white-space: pre-wrap; padding: 8px 10px; border-radius: 8px; background: var(--bg-2); }
+.list li.activity.read-only { align-items: center; gap: 8px; }
+.time-text { flex: none; width: 44px; color: var(--muted); }
+.share-error { max-width: 420px; margin: 15vh auto 0; padding: 0 16px; text-align: center; }
 .gap-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .gap-notice .small-btn { border-radius: 999px; }
 

@@ -24,7 +24,7 @@ import {
   type TripEntry,
 } from '../trip'
 import type { Activity, Place, Settings, TravelLine } from '../types'
-import SortableRows from './SortableRows'
+import SortableRows, { type HandleProps } from './SortableRows'
 
 interface Props {
   trip: Trip
@@ -44,6 +44,10 @@ interface Props {
   onFindTrains: (ctx: { afterId: string; lineId?: string; toStopId?: string }) => void
   onDrawLine: () => void
   onOpenBudget: () => void
+  /** Someone's shared trip: look, don't touch (tapping a row opens its details) */
+  readOnly?: boolean
+  /** Share this trip read-only */
+  onShare?: () => void
 }
 
 const gapText = (gap: number) =>
@@ -52,7 +56,8 @@ const gapText = (gap: number) =>
 const nights = (n: number) => (n === 0 ? 'passing through' : n === 1 ? '1 night' : `${n} nights`)
 
 export default function TripView(props: Props) {
-  const { trip, activities, lookup, settings, focusStop, highlightId, onFocusStop, onEditStop, onEditLine, onShowStop, onShowLine, onFindTrains } = props
+  const { trip, activities, lookup, settings, focusStop, highlightId, readOnly } = props
+  const { onFocusStop, onEditStop, onEditLine, onShowStop, onShowLine, onFindTrains } = props
   const [adding, setAdding] = useState(false)
   const stops = tripStops(trip)
   const totalDays = stops.length ? daysBetween(trip.start, trip.end) + 1 : 0
@@ -78,34 +83,100 @@ export default function TripView(props: Props) {
     else saveLine({ ...entry.line, order })
   }
 
+  const rowClass = (e: TripEntry) =>
+    ['trip-li', e.kind, highlightId === e.id ? 'highlighted' : '', focusStop === e.id ? 'on-map' : ''].join(' ')
+
+  function renderRow(e: TripEntry, handle?: HandleProps) {
+    const i = trip.entries.indexOf(e)
+    const prev = trip.entries[i - 1]
+    const dragHandle = handle && (
+      <button ref={handle.ref} className="drag-handle" aria-label="Drag to move" {...handle.attributes} {...handle.listeners}>
+        ⠿
+      </button>
+    )
+    if (e.kind === 'line')
+      return (
+        <div className="trip-entry">
+          <div className="trip-row">
+            {dragHandle}
+            <LineRow e={e} lookup={lookup} onShow={() => onShowLine(e.line)} />
+            {!readOnly && (
+              <>
+                <button
+                  className="icon-btn"
+                  title={e.line.kind === 'train' ? 'Pick another train' : 'Find a direct train'}
+                  onClick={() => prev && onFindTrains({ afterId: prev.id, lineId: e.id })}
+                  disabled={!prev}
+                >
+                  🚆
+                </button>
+                <button className="icon-btn" title="Edit" onClick={() => onEditLine(e.id)}>✏️</button>
+              </>
+            )}
+          </div>
+        </div>
+      )
+    return (
+      <div className="trip-entry">
+        {prev?.kind === 'stop' && !readOnly && (
+          <div className="connector missing">
+            <span className="muted small">How do you get here?</span>
+            <button className="small-btn" onClick={() => connect(prev, e)}>🧭 Rough plan</button>
+            <button className="small-btn" onClick={() => onFindTrains({ afterId: prev.id, toStopId: e.id })}>
+              🚆 Find a train
+            </button>
+          </div>
+        )}
+        <div className="trip-row">
+          {dragHandle}
+          <StopRow e={e} lookup={lookup} activities={activities} onShow={() => onShowStop(e)} />
+          {!readOnly && (
+            <>
+              <button
+                className={'icon-btn' + (focusStop === e.id ? ' active' : '')}
+                title={focusStop === e.id ? 'Show everything on the map' : 'Show only this stop on the map'}
+                onClick={() => onFocusStop(focusStop === e.id ? null : e.id)}
+              >
+                🗺️
+              </button>
+              <button className="icon-btn" title="Edit" onClick={() => onEditStop(e.id)}>✏️</button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   if (adding) return <StopPicker trip={trip} lookup={lookup} onDone={() => setAdding(false)} />
 
   return (
     <div className="trip">
       <TodayCard {...props} />
 
-      <div className="row two trip-settings">
-        <label className="field">
-          <span>Trip starts</span>
-          <input
-            type="date"
-            value={settings.tripStart ?? ''}
-            onChange={(e) => updateSettings({ tripStart: e.target.value || null })}
-          />
-        </label>
-        <label className="field">
-          <span>Pass travel days</span>
-          <input
-            type="number"
-            min={1}
-            max={99}
-            inputMode="numeric"
-            value={settings.passDays ?? ''}
-            onChange={(e) => updateSettings({ passDays: e.target.value ? Math.max(1, Number(e.target.value)) : null })}
-            placeholder="Continuous pass"
-          />
-        </label>
-      </div>
+      {!readOnly && (
+        <div className="row two trip-settings">
+          <label className="field">
+            <span>Trip starts</span>
+            <input
+              type="date"
+              value={settings.tripStart ?? ''}
+              onChange={(e) => updateSettings({ tripStart: e.target.value || null })}
+            />
+          </label>
+          <label className="field">
+            <span>Pass travel days</span>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              inputMode="numeric"
+              value={settings.passDays ?? ''}
+              onChange={(e) => updateSettings({ passDays: e.target.value ? Math.max(1, Number(e.target.value)) : null })}
+              placeholder="Continuous pass"
+            />
+          </label>
+        </div>
+      )}
       {stops.length > 0 && (
         <p className="small trip-summary">
           {totalDays} {totalDays === 1 ? 'day' : 'days'} · {stops.length} {stops.length === 1 ? 'stop' : 'stops'} ·{' '}
@@ -118,77 +189,33 @@ export default function TripView(props: Props) {
         </p>
       )}
 
-      {trip.entries.length === 0 && (
+      {trip.entries.length === 0 && readOnly && <p className="empty muted">Nothing planned yet.</p>}
+      {trip.entries.length === 0 && !readOnly && (
         <p className="empty muted">
           Plan your route as <b>stops</b> (where you sleep, how many nights) and the <b>connections</b> between them.
           Change the nights of one stop and every date after it moves along.
         </p>
       )}
 
-      <SortableRows
-        items={trip.entries}
-        rowClass={(e) =>
-          ['trip-li', e.kind, highlightId === e.id ? 'highlighted' : '', focusStop === e.id ? 'on-map' : ''].join(' ')
-        }
-        onMove={move}
-        renderRow={(e, handle) => {
-          const i = trip.entries.indexOf(e)
-          const prev = trip.entries[i - 1]
-          const dragHandle = (
-            <button ref={handle.ref} className="drag-handle" aria-label="Drag to move" {...handle.attributes} {...handle.listeners}>
-              ⠿
-            </button>
-          )
-          if (e.kind === 'line')
-            return (
-              <div className="trip-entry">
-                <div className="trip-row">
-                  {dragHandle}
-                  <LineRow e={e} lookup={lookup} onShow={() => onShowLine(e.line)} />
-                  <button
-                    className="icon-btn"
-                    title={e.line.kind === 'train' ? 'Pick another train' : 'Find a direct train'}
-                    onClick={() => prev && onFindTrains({ afterId: prev.id, lineId: e.id })}
-                    disabled={!prev}
-                  >
-                    🚆
-                  </button>
-                  <button className="icon-btn" title="Edit" onClick={() => onEditLine(e.id)}>✏️</button>
-                </div>
-              </div>
-            )
-          return (
-            <div className="trip-entry">
-              {prev?.kind === 'stop' && (
-                <div className="connector missing">
-                  <span className="muted small">How do you get here?</span>
-                  <button className="small-btn" onClick={() => connect(prev, e)}>🧭 Rough plan</button>
-                  <button className="small-btn" onClick={() => onFindTrains({ afterId: prev.id, toStopId: e.id })}>
-                    🚆 Find a train
-                  </button>
-                </div>
-              )}
-              <div className="trip-row">
-                {dragHandle}
-                <StopRow e={e} lookup={lookup} activities={activities} onShow={() => onShowStop(e)} />
-                <button
-                  className={'icon-btn' + (focusStop === e.id ? ' active' : '')}
-                  title={focusStop === e.id ? 'Show everything on the map' : 'Show only this stop on the map'}
-                  onClick={() => onFocusStop(focusStop === e.id ? null : e.id)}
-                >
-                  🗺️
-                </button>
-                <button className="icon-btn" title="Edit" onClick={() => onEditStop(e.id)}>✏️</button>
-              </div>
-            </div>
-          )
-        }}
-      />
+      {readOnly ? (
+        <ul className="list">
+          {trip.entries.map((e) => (
+            <li key={e.id} className={rowClass(e)}>
+              {renderRow(e)}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <SortableRows items={trip.entries} rowClass={rowClass} onMove={move} renderRow={renderRow} />
+      )}
 
-      <div className="row trip-actions">
-        <button className="primary" onClick={() => setAdding(true)}>+ Stop</button>
-        <button onClick={props.onDrawLine}>〰️ Draw a connection on the map</button>
-      </div>
+      {!readOnly && (
+        <div className="row trip-actions">
+          <button className="primary" onClick={() => setAdding(true)}>+ Stop</button>
+          <button onClick={props.onDrawLine}>〰️ Draw a connection on the map</button>
+          {props.onShare && <button onClick={props.onShare}>🔗 Share</button>}
+        </div>
+      )}
       <div className="line-legend">
         {Object.values(LINE_KINDS).map((k) => (
           <span key={k.label} className="small">
@@ -260,7 +287,7 @@ function LineRow({ e, lookup, onShow }: { e: LineEntry; lookup: Lookup; onShow: 
 }
 
 /** During the trip: tonight's bed, the next train, today's plans and spending */
-function TodayCard({ trip, activities, lookup, settings, spentToday, onShowLine, onEditStop, onOpenBudget }: Props) {
+function TodayCard({ trip, activities, lookup, settings, spentToday, onShowLine, onEditStop, onOpenBudget, readOnly }: Props) {
   const t = todayDate()
   if (!trip.entries.length || !trip.dated) return null
   if (t < trip.start) {
@@ -323,12 +350,14 @@ function TodayCard({ trip, activities, lookup, settings, spentToday, onShowLine,
               .join(' · ')}
           </li>
         )}
-        <li>
-          <button className="ghost" onClick={onOpenBudget}>
-            💶 Spent today: <b className={over ? 'warn-text' : ''}>{formatEur(spentToday)}</b>{' '}
-            <span className="muted">of {formatEur(settings.budgetDaily)}</span>
-          </button>
-        </li>
+        {!readOnly && (
+          <li>
+            <button className="ghost" onClick={onOpenBudget}>
+              💶 Spent today: <b className={over ? 'warn-text' : ''}>{formatEur(spentToday)}</b>{' '}
+              <span className="muted">of {formatEur(settings.budgetDaily)}</span>
+            </button>
+          </li>
+        )}
       </ul>
     </section>
   )

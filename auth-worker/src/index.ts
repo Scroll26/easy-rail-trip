@@ -9,6 +9,12 @@
 // POST /exchange { code }    → { access_token, expires_in, session }
 // POST /refresh  { session } → { access_token, expires_in }
 // POST /revoke   { session } → {}
+//
+// It also keeps shared trips (read-only links), in Workers KV:
+// POST   /share          { session, data } → { id, key }   (signed-in users only)
+// GET    /share/<id>                       → the shared trip
+// PUT    /share/<id>     { key, data }     → {}             (key = the edit key from POST)
+// DELETE /share/<id>     { key }           → {}
 
 interface Env {
   GOOGLE_CLIENT_ID: string
@@ -18,7 +24,20 @@ interface Env {
   SESSION_KEY: string
   /** Comma-separated origins allowed to call this Worker */
   ALLOWED_ORIGINS: string
+  /** Shared trips (wrangler kv namespace create SHARES --binding SHARES --update-config) */
+  SHARES?: KVNamespace
 }
+
+/** The parts of Workers KV used here */
+interface KVNamespace {
+  get(key: string): Promise<string | null>
+  getWithMetadata<M>(key: string): Promise<{ value: string | null; metadata: M | null }>
+  put(key: string, value: string, options?: { metadata?: unknown }): Promise<void>
+  delete(key: string): Promise<void>
+}
+
+/** Largest shared trip we keep */
+const MAX_SHARE = 1_000_000
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
@@ -49,6 +68,14 @@ async function google(env: Env, params: Record<string, string>) {
   return { status: res.status, body: (await res.json()) as Record<string, unknown> }
 }
 
+const sha256 = async (text: string) =>
+  b64(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))))
+
+function randomId(n: number) {
+  const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  return Array.from(crypto.getRandomValues(new Uint8Array(n)), (x) => chars[x % chars.length]).join('')
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const origin = req.headers.get('Origin') ?? ''
@@ -56,7 +83,7 @@ export default {
     if (!allowed.includes(origin)) return new Response('Forbidden', { status: 403 })
     const cors = {
       'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
       Vary: 'Origin',
@@ -64,6 +91,8 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
     const reply = (body: unknown, status = 200) =>
       new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
+    const path = new URL(req.url).pathname
+    if (path === '/share' || path.startsWith('/share/')) return shares(req, env, path.slice(7), reply)
     if (req.method !== 'POST') return reply({ error: 'method' }, 405)
 
     let input: { code?: string; session?: string }
@@ -72,7 +101,6 @@ export default {
     } catch {
       return reply({ error: 'bad_request' }, 400)
     }
-    const path = new URL(req.url).pathname
 
     if (path === '/exchange' && input.code) {
       // "postmessage" = the code came from Google's sign-in popup
@@ -108,4 +136,47 @@ export default {
 
     return reply({ error: 'not_found' }, 404)
   },
+}
+
+async function shares(req: Request, env: Env, id: string, reply: (body: unknown, status?: number) => Response) {
+  const kv = env.SHARES
+  if (!kv) return reply({ error: 'sharing_off' }, 503)
+  if (req.method === 'GET') {
+    const data = id && (await kv.get(id))
+    return data ? reply(JSON.parse(data)) : reply({ error: 'not_found' }, 404)
+  }
+  const text = await req.text()
+  if (text.length > MAX_SHARE) return reply({ error: 'too_large' }, 413)
+  let input: { session?: string; key?: string; data?: unknown }
+  try {
+    input = JSON.parse(text)
+  } catch {
+    return reply({ error: 'bad_request' }, 400)
+  }
+
+  if (req.method === 'POST' && !id) {
+    // Only people signed in through this helper can create links (keeps strangers from filling it up)
+    try {
+      await open(env, input.session ?? '')
+    } catch {
+      return reply({ error: 'invalid_grant' }, 401)
+    }
+    if (!input.data) return reply({ error: 'bad_request' }, 400)
+    const newId = randomId(10)
+    const key = b64(crypto.getRandomValues(new Uint8Array(24)))
+    await kv.put(newId, JSON.stringify(input.data), { metadata: { key: await sha256(key) } })
+    return reply({ id: newId, key })
+  }
+
+  if ((req.method === 'PUT' || req.method === 'DELETE') && id) {
+    const { metadata } = await kv.getWithMetadata<{ key: string }>(id)
+    if (!metadata) return reply({ error: 'not_found' }, 404)
+    if (!input.key || (await sha256(input.key)) !== metadata.key) return reply({ error: 'forbidden' }, 403)
+    if (req.method === 'DELETE') await kv.delete(id)
+    else if (input.data) await kv.put(id, JSON.stringify(input.data), { metadata })
+    else return reply({ error: 'bad_request' }, 400)
+    return reply({})
+  }
+
+  return reply({ error: 'method' }, 405)
 }

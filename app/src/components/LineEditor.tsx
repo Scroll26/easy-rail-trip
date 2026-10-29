@@ -1,8 +1,8 @@
-import { avoidedOnRoute, avoidOf, currentRoute, LINE_KINDS, lineTitle, type RouteFocus } from '../lines'
+import { avoidOf, LINE_KINDS, lineTitle, type RouteFocus } from '../lines'
 import { countryNames, useCountries } from '../countries'
 import AvoidCountries from './AvoidCountries'
 import EndpointField from './EndpointField'
-import RouteLegs from './RouteLegs'
+import RouteInfo from './RouteInfo'
 import PriceField from './PriceField'
 import GapNotice from './GapNotice'
 import { formatDay, today } from '../dates'
@@ -30,14 +30,10 @@ interface Props {
 /** A connection of the trip: a concrete train, or a general plan of where to go next */
 export default function LineEditor({ line, trip, entry, lookup, routeFailed, onClose, onFindTrains, routeFocus, onRouteFocus, onPickEnd }: Props) {
   const set = (patch: Partial<TravelLine>) => saveLine({ ...line, ...patch })
-  const route = currentRoute(line, lookup)
   const title = lineTitle(line, lookup)
   const shapes = useCountries()
   const names = (isos: string[]) => countryNames(isos, shapes)
   const avoid = avoidOf(line, lookup)
-  const through = route?.countries ?? []
-  const stillIn = avoidedOnRoute(line, lookup)
-  const atEnds = avoid.filter((iso) => iso === through[0] || iso === through[through.length - 1])
   // The stops this connection sits between, offered first as its ends
   const at = trip.entries.findIndex((e) => e.id === line.id)
   const near = [trip.entries[at - 1], trip.entries[at + 1]].flatMap((e) => (e?.kind === 'stop' ? [e.stop.placeId] : []))
@@ -99,32 +95,7 @@ export default function LineEditor({ line, trip, entry, lookup, routeFailed, onC
         <span className="muted small">{LINE_KINDS[line.kind].hint}</span>
       </div>
       {line.kind === 'train' && (
-        <div className="route-info">
-          {route?.path ? (
-            <>
-              <RouteLegs legs={route.legs} focused={routeFocus?.key ?? null} onFocus={onRouteFocus} />
-              {through.length > 1 && <span className="small muted">Through {through.map((iso) => names([iso])).join(' → ')}</span>}
-              {stillIn.length > 0 ? (
-                <span className="small warn-text">⚠ Runs through {names(stillIn)}: no train route around it was found.</span>
-              ) : (
-                avoid.length > atEnds.length && <span className="small cov-text good">✓ Stays out of {names(avoid.filter((c) => !atEnds.includes(c)))}</span>
-              )}
-              {atEnds.length > 0 && (
-                <span className="small muted">
-                  {through[0] === atEnds[0] ? 'Starts' : 'Ends'} in {names(atEnds)}, so that part can't be avoided.
-                </span>
-              )}
-            </>
-          ) : route ? (
-            <span className="small muted">No train route found between these places, so it's drawn as a straight line.</span>
-          ) : routeFailed ? (
-            <span className="small muted">
-              Couldn't look up the route right now (offline?). It's drawn straight and tried again next time.
-            </span>
-          ) : (
-            <span className="small muted">Looking up the route along the tracks…</span>
-          )}
-        </div>
+        <RouteInfo line={line} lookup={lookup} routeFailed={routeFailed} routeFocus={routeFocus} onRouteFocus={onRouteFocus} />
       )}
       <div className="field">
         <span>Avoid countries</span>

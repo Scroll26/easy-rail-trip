@@ -49,6 +49,8 @@ interface Props {
   /** Open a line's popup (e.g. when it was tapped in the list); `n` changes on every request */
   linePopup: { id: string; n: number } | null
   onEditLine: (id: string) => void
+  /** Someone's shared trip: no adding places or looking up trains from map taps */
+  readOnly?: boolean
 }
 
 export interface PickHit {
@@ -363,6 +365,7 @@ export default function MapView({
   onSectionClick,
   linePopup,
   onEditLine,
+  readOnly = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const markers = useRef(new Map<string, maplibregl.Marker>())
@@ -370,8 +373,8 @@ export default function MapView({
   const currencyRef = useRef(currencyData)
   currencyRef.current = currencyData
   // Latest values for map event handlers registered once
-  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect, onSectionClick })
-  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect, onSectionClick }
+  const latest = useRef({ picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect, onSectionClick, readOnly })
+  latest.current = { picking, onPick, onSelect, settings, onAddFromMap, onTrainsFrom, onEditLine, onReachSelect, onSectionClick, readOnly }
   const showLinePopupRef = useRef<
     ((p: { id: string; kind: 'train' | 'plan'; title: string }, at: maplibregl.LngLatLike) => void) | null
   >(null)
@@ -872,7 +875,9 @@ export default function MapView({
       const exact = (layers: string[]) =>
         map.queryRenderedFeatures([x, y], { layers: layers.filter((id) => map.getLayer(id)) })[0]
       const stationHit = lineHit ? exact(ORM_STATION_LAYERS) : hit(ORM_STATION_LAYERS)
-      if (stationHit) {
+      // A shared trip only shows its own connections
+      const { readOnly } = latest.current
+      if (stationHit && !readOnly) {
         showStationPopup(
           String(stationHit.properties.name || stationHit.properties.label || ''),
           (stationHit.geometry as GeoJSON.Point).coordinates as [number, number],
@@ -889,7 +894,7 @@ export default function MapView({
         showFerryPopup(Number(ferryHit.properties.i), e.lngLat)
         return
       }
-      const labelHit = hit(CLICKABLE_LAYERS)
+      const labelHit = readOnly ? null : hit(CLICKABLE_LAYERS)
       if (labelHit) showAddPopup(labelHit, e.lngLat)
     })
 

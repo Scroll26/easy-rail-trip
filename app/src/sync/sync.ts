@@ -173,7 +173,7 @@ export async function resolveChoice(choice: 'merge' | 'replace' | 'cancel') {
   sessionStorage.setItem(REPLACE_KEY, toBase64(remote))
   prefs = { ...prefs, enabled: true }
   writePrefs(prefs)
-  await persistence.clearData()
+  await persistence?.clearData()
   location.reload()
 }
 
@@ -189,7 +189,7 @@ export async function deleteLocalData(): Promise<never> {
   } catch {
     /* storage unavailable */
   }
-  await persistence.clearData()
+  await persistence?.clearData()
   location.reload()
   return new Promise<never>(() => {})
 }

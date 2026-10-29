@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { CATEGORIES } from '../data/categories'
-import { addDays, formatDay } from '../dates'
+import { formatDay } from '../dates'
 import { deleteActivity, deleteStop, newId, nextActivityOrder, saveActivity, saveStop } from '../store'
-import { activityDate, activityDay, km, stayName, stopDays, type Lookup, type StopEntry, type Trip } from '../trip'
+import { activityDate, activityDay, km, stayName, stopDayLabel, stopDays, type Lookup, type StopEntry, type Trip } from '../trip'
 import type { Activity, StayInfo, Stop } from '../types'
 import PriceField from './PriceField'
 import GapNotice from './GapNotice'
@@ -73,12 +73,7 @@ export default function StopEditor({ trip, entry, activities, lookup, onClose, o
   const buckets: (number | null)[] = [null, ...Array.from({ length: days }, (_, i) => i)]
   const sortInDay = (a: Activity, b: Activity) =>
     (a.time || '99') < (b.time || '99') ? -1 : (a.time || '99') > (b.time || '99') ? 1 : a.order - b.order
-  const dayLabel = (d: number | null) => {
-    if (d == null) return 'Anytime'
-    const date = addDays(entry.arrive, d)
-    const extra = d === 0 ? ' · arrival' : d === days - 1 && days > 1 ? ' · leaving' : ''
-    return `Day ${d + 1} · ${formatDay(date)}${extra}`
-  }
+  const dayLabel = (d: number | null) => stopDayLabel(entry, d)
 
   const used = new Set(activities.map((a) => a.placeId))
   const q = filter.trim().toLowerCase()
