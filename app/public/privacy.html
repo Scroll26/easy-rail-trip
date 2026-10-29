@@ -27,7 +27,7 @@
         Rail Planner (<a href="https://scroll26.github.io/rail-planner/">scroll26.github.io/rail-planner</a>) is a free,
         open-source trip planner. It is a website that runs in your browser. <strong>It has no user accounts, no
         analytics and no advertising.</strong> A small helper service run by the developer (a Cloudflare Worker) is
-        used only if you turn on Google Drive sync or share your trip with a live link; both are described below.
+        used only if you turn on Google Drive sync or share your trip; both are described below.
       </p>
 
       <h2>What is stored, and where</h2>
@@ -73,21 +73,17 @@
       </ul>
 
       <h2>Optional sharing of your trip</h2>
-      <p>If you share your trip (<em>Trip → Share</em>), people with the link can see it read-only:</p>
+      <p>If you share your trip (<em>Settings → Share your trip</em>), people with the link can see it read-only:</p>
       <ul>
         <li>
-          Shared are your stops, connections, things to do and map settings. Not shared: prices and your budget, places
-          that aren't part of the trip, and people's addresses and contact details (only their name and roughly where
-          they live).
+          Shared are your stops, connections, things to do, the pins shown in <em>View trip</em> and its map settings.
+          Not shared: prices and your budget, and people's addresses and contact details (only their name and roughly
+          where they live).
         </li>
         <li>
-          <strong>Live link:</strong> a copy of these shared parts is stored by the helper (Cloudflare Workers KV) and
-          updated when you change your trip, until you choose <em>Stop sharing</em>, which deletes it. Anyone who has
-          the link can see it.
-        </li>
-        <li>
-          <strong>Snapshot link:</strong> the shared parts are packed into the link itself and not stored anywhere by
-          the app. Anyone who has the link can see them, and it can't be switched off.
+          A copy of these shared parts is stored by the helper (Cloudflare Workers KV) as it was when you made or last
+          updated the link. Anyone who has the link can see it. <em>Delete link</em> deletes it right away; otherwise
+          it is deleted automatically 12 months after the last update.
         </li>
       </ul>
 
@@ -101,7 +97,7 @@
         <li><strong>Transitous</strong>, only when you look up direct trains (the chosen station and time)</li>
         <li><strong>open.er-api.com</strong>, falling back to <strong>jsDelivr</strong>, for exchange rates when the currency overlay is on (no personal data)</li>
         <li><strong>Google</strong>, only if you use Drive sync (see above)</li>
-        <li><strong>Cloudflare</strong>, which runs the helper, only if you use Drive sync or open or make a live link</li>
+        <li><strong>Cloudflare</strong>, which runs the helper, only if you use Drive sync or open or make a share link</li>
       </ul>
       <p>The app sets no cookies of its own and uses no tracking.</p>
 
@@ -118,7 +114,7 @@
       <p>
         Rail Planner ist ein kostenloser Reiseplaner, der in deinem Browser läuft. Es gibt <strong>keine
         Benutzerkonten, keine Analyse und keine Werbung</strong>. Ein kleiner Hilfsdienst des Entwicklers (ein
-        Cloudflare Worker) wird nur für die Google-Drive-Synchronisierung und für Live-Links zum Teilen genutzt.
+        Cloudflare Worker) wird nur für die Google-Drive-Synchronisierung und zum Teilen der Reise genutzt.
       </p>
       <ul>
         <li>Alles, was du eingibst, wird <strong>nur auf deinem Gerät</strong> im Browser gespeichert.</li>
@@ -134,11 +130,11 @@
           deine Reise nie.
         </li>
         <li>
-          <strong>Teilen (freiwillig):</strong> Geteilt werden Stopps, Verbindungen, Unternehmungen und
-          Karteneinstellungen, nicht aber Preise, Budget, Orte außerhalb der Reise sowie Adressen und Kontaktdaten von
-          Personen. Beim <strong>Live-Link</strong> speichert der Hilfsdienst (Cloudflare Workers KV) eine Kopie davon,
-          bis du „Stop sharing“ wählst. Beim <strong>Snapshot-Link</strong> steckt alles im Link selbst und wird
-          nirgends gespeichert. Wer den Link hat, kann die Reise ansehen.
+          <strong>Teilen (freiwillig):</strong> Geteilt werden Stopps, Verbindungen, Unternehmungen sowie die in
+          „View trip“ sichtbaren Pins und Karteneinstellungen, nicht aber Preise, Budget sowie Adressen und
+          Kontaktdaten von Personen. Der Hilfsdienst (Cloudflare Workers KV) speichert eine Kopie davon, bis du „Delete
+          link“ wählst, spätestens aber 12 Monate nach der letzten Aktualisierung wird sie gelöscht. Wer den Link hat,
+          kann die Reise ansehen.
         </li>
         <li>
           Zugriff entziehen: <em>Einstellungen → Sync → Disconnect</em> in der App oder unter
@@ -146,7 +142,7 @@
         </li>
         <li>
           Für Karte, Suche und Wechselkurse lädt dein Browser Daten direkt von GitHub Pages, OpenFreeMap,
-          Nominatim/OpenStreetMap und open.er-api.com bzw. jsDelivr (bei Sync und Live-Links auch von Cloudflare). Diese Dienste sehen dabei deine IP-Adresse. Die App
+          Nominatim/OpenStreetMap und open.er-api.com bzw. jsDelivr (bei Sync und geteilten Links auch von Cloudflare). Diese Dienste sehen dabei deine IP-Adresse. Die App
           setzt keine eigenen Cookies und verwendet kein Tracking.
         </li>
         <li>

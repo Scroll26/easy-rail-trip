@@ -5,14 +5,14 @@ import './index.css'
 import App from './App.tsx'
 import Viewer, { ShareError } from './components/Viewer'
 import { persistence, viewingShare } from './store'
-import { loadShareFromUrl, showShared, startSharePush } from './share'
+import { loadShareFromUrl, showShared } from './share'
 import { startSync } from './sync/sync'
 
 registerSW({ immediate: true })
 
 // A shared link pasted into the open app: start over as a viewer (or back as your own trip)
 window.addEventListener('hashchange', () => {
-  if (viewingShare || /^#(share|trip)=/.test(location.hash)) location.reload()
+  if (viewingShare || /^#share=/.test(location.hash)) location.reload()
 })
 
 const root = createRoot(document.getElementById('root')!)
@@ -41,6 +41,5 @@ if (viewingShare) {
       </StrictMode>,
     )
     startSync()
-    startSharePush()
   })
 }

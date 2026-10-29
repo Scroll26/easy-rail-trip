@@ -46,8 +46,6 @@ interface Props {
   onOpenBudget: () => void
   /** Someone's shared trip: look, don't touch (tapping a row opens its details) */
   readOnly?: boolean
-  /** Share this trip read-only */
-  onShare?: () => void
 }
 
 const gapText = (gap: number) =>
@@ -213,7 +211,6 @@ export default function TripView(props: Props) {
         <div className="row trip-actions">
           <button className="primary" onClick={() => setAdding(true)}>+ Stop</button>
           <button onClick={props.onDrawLine}>〰️ Draw a connection on the map</button>
-          {props.onShare && <button onClick={props.onShare}>🔗 Share</button>}
         </div>
       )}
       <div className="line-legend">

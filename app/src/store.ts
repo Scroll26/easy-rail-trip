@@ -10,7 +10,7 @@ import type { Activity, Expense, Group, Person, Place, Settings, Stop, TravelLin
 export const doc = new Y.Doc()
 
 /** Opened from a shared link: someone else's trip, read-only and only in memory, so this device's own trip stays untouched */
-export const viewingShare = /^#(share|trip)=/.test(location.hash)
+export const viewingShare = /^#share=/.test(location.hash)
 export const persistence = viewingShare ? null : new IndexeddbPersistence('rail-planner-trip', doc)
 
 const places = doc.getMap<Place>('places')

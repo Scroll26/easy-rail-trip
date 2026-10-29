@@ -133,7 +133,7 @@ Set a **daily goal** (for example 50 €) and log what you spend; the app tells 
 ## 3. Your data
 
 - Everything you enter is saved **automatically, on your device**. You don't need a save button.
-- Nothing is sent to us, except what you choose to share with a live link (see below).
+- Nothing is sent to us, except a trip you choose to share (see below).
 - **Uninstalling the app or clearing the browser data deletes your trip** unless you've synced it or exported a backup.
 - ⚙️ **Settings → Data & storage** shows how much space the app uses, can clear saved map areas, and can **delete your trip** on this device or everywhere (incl. Google Drive). It tells you before deleting whether the data can be recovered.
 - Full details: [Privacy policy](https://scroll26.github.io/rail-planner/privacy.html)
@@ -147,11 +147,12 @@ In ⚙️ **Settings → Sync**, tap **"Connect Google Drive"** and sign in. You
 
 ### Share your trip (read-only)
 
-**Trip → 🔗 Share** gives you a link to send to family or friends. They see your map and trip list and can tap any stop or connection for its details (dates, bed, things to do, each train), but they can't change anything. They don't need the app or an account. Opening a shared link never touches your own trip, even on your own phone.
+⚙️ **Settings → Share your trip** gives you a short link to send to family or friends. They see your trip **the way *View trip* shows it** (the same pins, lines and map options) plus the trip list, and can tap any stop or connection for its details (dates, bed, things to do, each train). They can't change anything, and they don't need the app or an account. Opening a shared link never touches your own trip, even on your own phone.
 
-- **Live link** (needs Google Drive sync): a short link that always shows your current plan. Your changes are uploaded a few seconds after you make them, from any of your synced devices. **Stop sharing** switches it off for everyone. The sign-in helper keeps the shared copy.
-- **Snapshot link:** the trip as it is right now, packed into the link itself. No server involved, but later changes don't show and it can't be switched off. Long trips make long links, which some chat apps cut off.
-- **Not shared:** prices and your budget, places that aren't part of the trip, and people's addresses and contact details (only their name and roughly where they live). The map shows the trip with your current map settings.
+- The link is a **snapshot**: it shows the trip as it was when you made it. **🔄 Update** replaces it with the trip as it is now; the link stays the same.
+- **Delete link** removes it, and it stops working for everyone. Otherwise it's deleted automatically **a year after the last update**.
+- It needs Google Drive sync: the sign-in helper keeps the shared copy.
+- **Not shared:** prices and your budget, pins hidden in View trip, and people's addresses and contact details (only their name and roughly where they live).
 
 ### Backup / move without Google
 

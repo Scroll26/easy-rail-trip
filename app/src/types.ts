@@ -200,8 +200,8 @@ export interface Settings {
   showStreets: boolean
   colorPlacesByGroup: boolean
   colorPeopleByGroup: boolean
-  /** Live read-only link of this trip (see share.ts); key = the edit key for updating it */
-  share: { id: string; key: string } | null
+  /** Read-only snapshot link of this trip (see share.ts): key = its edit key, at = when it was last updated */
+  share: { id: string; key: string; at: number } | null
 }
 
 export type Selection = { kind: 'place' | 'person'; id: string } | null

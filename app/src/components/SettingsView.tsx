@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadCountries } from '../countries'
 import SyncSection from './SyncSection'
+import ShareSection from './ShareSection'
 import DataSection from './DataSection'
 import AvoidCountries from './AvoidCountries'
 import { DEFAULT_INTERRAIL_COUNTRIES } from '../data/interrail'
@@ -51,6 +52,8 @@ export default function SettingsView({ settings }: { settings: Settings }) {
   return (
     <div className="settings">
       <SyncSection />
+
+      <ShareSection share={settings.share} />
 
       <section>
         <h3>Backup</h3>

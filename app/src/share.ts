@@ -1,15 +1,13 @@
 import { AUTH_URL } from './config'
-import { doc, getShare, replaceTrip, tripData, updateSettings, type TripData } from './store'
+import { getShare, replaceTrip, tripData, updateSettings, type TripData } from './store'
 import { session } from './sync/googleAuth'
-import type { RouteLeg, TravelLine } from './types'
+import { NO_GROUP, type RouteLeg, type TravelLine } from './types'
 
-// Read-only sharing of the trip. Both kinds of link open this app as a viewer:
-// - live link (#share=<id>): the sign-in helper keeps a copy (Workers KV), updated a few
-//   seconds after each change, so the link always shows the current plan. Can be switched off.
-// - snapshot link (#trip=<data>): the whole trip packed into the link itself. No server,
-//   but it never changes and can't be switched off.
-// Shared: stops, connections, things to do, and the map settings. Left out: prices and the
-// budget, places that aren't part of the trip, and people's addresses and contact details.
+// Read-only sharing of the trip as a snapshot: a copy of the trip as it looks with "View trip"
+// on, kept by the sign-in helper (Workers KV) under a short link (#share=<id>). Updating the
+// snapshot keeps the link; the helper deletes it a year after its last update, or when you do.
+// Shared: the stops, connections and things to do, plus the pins View trip shows. Left out:
+// prices and the budget, and people's addresses and contact details.
 
 export interface SharedTrip extends Omit<TripData, 'expenses'> {
   app: 'rail-planner-share'
@@ -17,10 +15,8 @@ export interface SharedTrip extends Omit<TripData, 'expenses'> {
   sharedAt: number
 }
 
-const SHARE_HASH = /^#(share|trip)=(.+)$/
+const SHARE_HASH = /^#share=(.+)$/
 const CACHE_PREFIX = 'rail-planner:shared:'
-const PUSHED_KEY = 'rail-planner:share-pushed'
-const PUSH_DELAY = 10_000
 
 const round = (n: number, digits: number) => Math.round(n * 10 ** digits) / 10 ** digits
 // ~10 m: plenty for drawing, and much shorter
@@ -43,11 +39,17 @@ function shareLine(l: TravelLine): TravelLine {
   }
 }
 
-/** The trip as others get to see it */
+/** The trip as others get to see it: what the map shows with "View trip" on */
 export function sharedTrip(): SharedTrip {
   const d = tripData()
-  const places = new Set<string>()
-  const people = new Set<string>()
+  const view = { ...d.settings.tripView }
+  const hidden = new Set(d.settings.hiddenGroups ?? [])
+  const pinShown = (kind: 'place' | 'person', groupId?: string | null) =>
+    (kind === 'place' ? view.places ?? true : view.people ?? true) && !hidden.has(groupId ?? `${NO_GROUP}:${kind}`)
+
+  // The trip needs its own places and people even when their pins are hidden
+  const places = new Set(d.places.filter((p) => pinShown('place', p.groupId)).map((p) => p.id))
+  const people = new Set(d.people.filter((p) => pinShown('person', p.groupId)).map((p) => p.id))
   // People a connection starts or ends at keep their exact spot (the stored route depends on it)
   const exact = new Set<string>()
   for (const s of d.stops) {
@@ -77,7 +79,8 @@ export function sharedTrip(): SharedTrip {
       lng: p.lng == null || exact.has(p.id) ? p.lng : round(p.lng, 2),
     }))
   const groups = new Set([...sharedPlaces, ...sharedPeople].map((x) => x.groupId))
-  const settings = { ...d.settings }
+  // Always shown as with "View trip" on
+  const settings = { ...d.settings, simpleView: true }
   delete settings.share
   delete settings.budgetDaily
   delete settings.budgetStart
@@ -94,40 +97,12 @@ export function sharedTrip(): SharedTrip {
   }
 }
 
-// ---- Links ----
-
-const appUrl = () => location.origin + import.meta.env.BASE_URL
-
-export const liveLink = (id: string) => `${appUrl()}#share=${id}`
-
-export async function snapshotLink() {
-  return `${appUrl()}#trip=${toBase64Url(await deflate(JSON.stringify(sharedTrip())))}`
-}
-
-async function deflate(text: string) {
-  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'))
-  return new Uint8Array(await new Response(stream).arrayBuffer())
-}
-
-async function inflate(bytes: Uint8Array) {
-  const stream = new Blob([bytes as Uint8Array<ArrayBuffer>]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
-  return new Response(stream).text()
-}
-
-function toBase64Url(bytes: Uint8Array) {
-  let s = ''
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
-const fromBase64Url = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0))
+export const shareLink = (id: string) => `${location.origin}${import.meta.env.BASE_URL}#share=${id}`
 
 // ---- Viewer ----
 
 export interface LoadedShare {
   trip: SharedTrip
-  /** A live link (it can change), not a snapshot */
-  live: boolean
   /** Couldn't reach the helper: this is the copy from the last visit */
   offline: boolean
 }
@@ -137,32 +112,26 @@ function check(t: unknown): SharedTrip {
   return t as SharedTrip
 }
 
+const linkId = () => location.hash.match(SHARE_HASH)?.[1] ?? null
+
 /** The shared trip of the link this page was opened with */
 export async function loadShareFromUrl(): Promise<LoadedShare> {
-  const m = location.hash.match(SHARE_HASH)
-  if (!m) throw new Error('No shared trip in this link.')
-  if (m[1] === 'trip') {
-    try {
-      return { trip: check(JSON.parse(await inflate(fromBase64Url(m[2])))), live: false, offline: false }
-    } catch {
-      throw new Error('This link is broken or incomplete. Ask for it again (it may have been cut off when it was sent).')
-    }
-  }
-  const id = m[2]
+  const id = linkId()
+  if (!id) throw new Error('No shared trip in this link.')
   try {
-    return { trip: await fetchLive(id), live: true, offline: false }
+    return { trip: await fetchShared(id), offline: false }
   } catch (e) {
     if ((e as Error).name !== 'TypeError') throw e
     // Offline: the copy from last time
     const cached = readCache(id)
-    if (cached) return { trip: cached, live: true, offline: true }
+    if (cached) return { trip: cached, offline: true }
     throw new Error('Opening a shared trip needs an internet connection the first time.')
   }
 }
 
-async function fetchLive(id: string) {
+async function fetchShared(id: string) {
   const res = await fetch(`${AUTH_URL}/share/${encodeURIComponent(id)}`)
-  if (res.status === 404) throw new Error('This trip is no longer shared (the link was switched off).')
+  if (res.status === 404) throw new Error('This trip is no longer shared (the link was deleted or is over a year old).')
   if (!res.ok) throw new Error('The shared trip could not be loaded right now. Try again later.')
   const trip = check(await res.json())
   try {
@@ -181,12 +150,12 @@ function readCache(id: string) {
   }
 }
 
-/** Newer copy of the live trip being viewed, or null if it hasn't changed (or can't be reached) */
-export async function refreshLive(since: number): Promise<SharedTrip | null> {
-  const m = location.hash.match(SHARE_HASH)
-  if (m?.[1] !== 'share' || !navigator.onLine) return null
+/** A newer snapshot behind the link being viewed, or null if it hasn't changed (or can't be reached) */
+export async function refreshShared(since: number): Promise<SharedTrip | null> {
+  const id = linkId()
+  if (!id || !navigator.onLine) return null
   try {
-    const trip = await fetchLive(m[2])
+    const trip = await fetchShared(id)
     return trip.sharedAt > since ? trip : null
   } catch {
     return null
@@ -197,7 +166,7 @@ export function showShared(trip: SharedTrip) {
   replaceTrip({ ...trip, expenses: [] })
 }
 
-// ---- Your live link ----
+// ---- Your shared link ----
 
 async function helper(method: string, path: string, body: unknown) {
   const res = await fetch(AUTH_URL + path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -205,71 +174,37 @@ async function helper(method: string, path: string, body: unknown) {
   return { status: res.status, body: reply as { id?: string; key?: string; error?: string } }
 }
 
-export const canShareLive = () => AUTH_URL !== ''
+export const canShare = () => AUTH_URL !== ''
 
-/** Make a live link for this trip */
-export async function startLiveShare() {
+/** Share the trip as it is now. Your link stays the same: it then shows this snapshot. */
+export async function saveSnapshot() {
+  if (!navigator.onLine) throw new Error('Sharing needs an internet connection.')
+  const data = sharedTrip()
+  const share = getShare()
+  if (share) {
+    const r = await helper('PUT', `/share/${share.id}`, { key: share.key, data })
+    if (r.status === 200) {
+      updateSettings({ share: { ...share, at: data.sharedAt } })
+      return
+    }
+    // Gone (deleted elsewhere or expired): make a new link below
+    if (r.status !== 404) throw new Error("Couldn't update the link right now. Try again later.")
+  }
   const s = session()
-  if (!s) throw new Error('Connect Google Drive sync first (Settings → Sync): live links are kept by the same sign-in helper.')
-  const r = await helper('POST', '/share', { session: s, data: sharedTrip() })
+  if (!s) throw new Error('Connect Google Drive sync first (Settings → Sync): links are kept by the same sign-in helper.')
+  const r = await helper('POST', '/share', { session: s, data })
   if (r.status === 401) throw new Error('Your Google Drive sign-in ended. Disconnect and connect sync again, then retry.')
   if (r.body.error === 'sharing_off') throw new Error("The sign-in helper isn't set up for sharing yet.")
   if (!r.body.id || !r.body.key) throw new Error("Couldn't make the link right now. Try again later.")
-  updateSettings({ share: { id: r.body.id, key: r.body.key } })
+  updateSettings({ share: { id: r.body.id, key: r.body.key, at: data.sharedAt } })
 }
 
-/** Switch the live link off: it stops working for everyone */
-export async function stopLiveShare() {
+/** Delete your shared link and its copy of the trip: it stops working for everyone */
+export async function deleteSnapshot() {
   const share = getShare()
   if (!share) return
+  if (!navigator.onLine) throw new Error('Deleting the link needs an internet connection.')
   const r = await helper('DELETE', `/share/${share.id}`, { key: share.key })
-  if (r.status !== 200 && r.status !== 404) throw new Error("Couldn't switch the link off right now (offline?). Try again.")
+  if (r.status !== 200 && r.status !== 404) throw new Error("Couldn't delete the link right now. Try again later.")
   updateSettings({ share: null })
-}
-
-/** Short fingerprint of a text, to skip uploading what's already there */
-function fingerprint(text: string) {
-  let h1 = 0xdeadbeef
-  let h2 = 0x41c6ce57
-  for (let i = 0; i < text.length; i++) {
-    const c = text.charCodeAt(i)
-    h1 = Math.imul(h1 ^ c, 2654435761)
-    h2 = Math.imul(h2 ^ c, 1597334677)
-  }
-  return (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36)
-}
-
-let pushing = false
-
-async function pushLiveShare() {
-  const share = getShare()
-  if (!share || !navigator.onLine || pushing) return
-  const data = sharedTrip()
-  const mark = share.id + ':' + fingerprint(JSON.stringify({ ...data, sharedAt: 0 }))
-  try {
-    if (localStorage.getItem(PUSHED_KEY) === mark) return
-  } catch {
-    /* storage unavailable: just upload */
-  }
-  pushing = true
-  try {
-    const r = await helper('PUT', `/share/${share.id}`, { key: share.key, data })
-    if (r.status === 200) localStorage.setItem(PUSHED_KEY, mark)
-  } catch {
-    /* offline: next change or coming back online tries again */
-  } finally {
-    pushing = false
-  }
-}
-
-/** Keep the live link up to date: upload a few seconds after changes (here or synced from another device) */
-export function startSharePush() {
-  if (!canShareLive()) return
-  let timer: ReturnType<typeof setTimeout> | undefined
-  doc.on('update', () => {
-    clearTimeout(timer)
-    timer = setTimeout(() => void pushLiveShare(), PUSH_DELAY)
-  })
-  window.addEventListener('online', () => void pushLiveShare())
-  void pushLiveShare()
 }

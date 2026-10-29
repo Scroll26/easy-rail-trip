@@ -375,8 +375,6 @@ textarea { resize: vertical; }
 .date-text { padding: 9px 0; }
 
 /* Sharing */
-.share-view section { margin: 14px 0; }
-.share-view h3 { margin: 0 0 4px; }
 .link-box { display: flex; flex-direction: column; gap: 6px; }
 .link-box input { font-size: 13px; }
 .share-head { display: flex; flex-direction: column; gap: 1px; padding: 10px 16px; border-bottom: 1px solid var(--border); }

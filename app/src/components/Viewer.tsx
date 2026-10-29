@@ -7,12 +7,12 @@ import { currentRoute, drawnLines, legFocus, resolveEndpoint, type RouteFocus } 
 import { buildTrip, placesInTrip, statusOf, tripLines, tripStops, type Lookup } from '../trip'
 import { fitPath, isPhone } from '../mapFit'
 import { useBottomSheet } from '../useBottomSheet'
-import { refreshLive, showShared, type LoadedShare } from '../share'
+import { refreshShared, showShared, type LoadedShare } from '../share'
 import { mapSettingsFor, useActivities, useGroups, useLines, usePeople, usePlaces, useSettings, useStops } from '../store'
 import type { Selection } from '../types'
 
-// Someone's shared trip: the map and the trip list, read-only. Tap a stop or a connection
-// for its details; a live link refreshes itself while it's open.
+// Someone's shared trip: the map (as with "View trip" on) and the trip list, read-only. Tap a
+// stop or a connection for its details. A newer snapshot behind the link shows up by itself.
 
 const REFRESH = 5 * 60 * 1000
 
@@ -38,13 +38,12 @@ export default function Viewer({ initial }: { initial: LoadedShare }) {
   const [rowHighlight, setRowHighlight] = useState<string | null>(null)
 
 
-  // A live link: pick up the latest plan now and then, and when coming back to the page
+  // The snapshot may be updated: pick up the latest now and then, and when coming back to the page
   useEffect(() => {
-    if (!initial.live) return
     let since = sharedAt
     const check = async () => {
       if (document.visibilityState !== 'visible') return
-      const fresh = await refreshLive(since)
+      const fresh = await refreshShared(since)
       if (!fresh) return
       since = fresh.sharedAt
       showShared(fresh)
@@ -59,7 +58,7 @@ export default function Viewer({ initial }: { initial: LoadedShare }) {
     }
     // Set up once; `since` keeps track from here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial.live])
+  }, [])
 
   const lookup: Lookup = useMemo(
     () => ({
@@ -247,7 +246,7 @@ export default function Viewer({ initial }: { initial: LoadedShare }) {
           <div className="share-head">
             <strong>🔗 Shared trip</strong>
             <span className="muted small">
-              Read-only · {initial.live ? `updated ${when(sharedAt)}` : `as of ${when(sharedAt)}`}
+              Read-only · as of {when(sharedAt)}
               {offline ? ' · offline copy' : ''}
             </span>
           </div>

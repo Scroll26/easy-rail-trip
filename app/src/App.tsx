@@ -8,7 +8,6 @@ import PlaceEditor from './components/PlaceEditor'
 import PersonEditor from './components/PersonEditor'
 import SettingsView from './components/SettingsView'
 import TripView from './components/TripView'
-import ShareView from './components/ShareView'
 import StopEditor from './components/StopEditor'
 import CollectionView from './components/CollectionView'
 import MapToolbar from './components/MapToolbar'
@@ -120,7 +119,6 @@ export default function App() {
   /** Stop shown alone on the map (its map button) */
   const [focusStop, setFocusStop] = useState<string | null>(null)
   const [placesView, setPlacesView] = useState<'places' | 'people'>('places')
-  const [sharing, setSharing] = useState(false)
   const [editingLine, setEditingLine] = useState<string | null>(null)
   // A train or station of the open connection, highlighted on the map
   const [routeFocus, setRouteFocus] = useState<RouteFocus | null>(null)
@@ -806,7 +804,6 @@ export default function App() {
         onClearContext={() => setTrainsContext(null)}
       />
     )
-  else if (tab === 'trip' && sharing) body = <ShareView share={settings.share} onClose={() => setSharing(false)} />
   else if (tab === 'trip')
     body = (
       <TripView
@@ -825,7 +822,6 @@ export default function App() {
         onFindTrains={findTrainsFor}
         onDrawLine={() => startPick({ kind: 'line-start' })}
         onOpenBudget={() => setTab('budget')}
-        onShare={() => setSharing(true)}
       />
     )
   else
@@ -985,7 +981,6 @@ export default function App() {
                 className={tab === t && !selection && !editedStop && !editedLine ? 'active' : ''}
                 onClick={() => {
                   setTab(t)
-                  setSharing(false)
                   setSelection(null)
                   setEditingStop(null)
                   setEditingLine(null)

@@ -10,7 +10,8 @@
 // POST /refresh  { session } → { access_token, expires_in }
 // POST /revoke   { session } → {}
 //
-// It also keeps shared trips (read-only links), in Workers KV:
+// It also keeps shared trips (read-only snapshot links), in Workers KV. Each one is
+// deleted automatically a year after it was last updated.
 // POST   /share          { session, data } → { id, key }   (signed-in users only)
 // GET    /share/<id>                       → the shared trip
 // PUT    /share/<id>     { key, data }     → {}             (key = the edit key from POST)
@@ -32,12 +33,14 @@ interface Env {
 interface KVNamespace {
   get(key: string): Promise<string | null>
   getWithMetadata<M>(key: string): Promise<{ value: string | null; metadata: M | null }>
-  put(key: string, value: string, options?: { metadata?: unknown }): Promise<void>
+  put(key: string, value: string, options?: { metadata?: unknown; expirationTtl?: number }): Promise<void>
   delete(key: string): Promise<void>
 }
 
 /** Largest shared trip we keep */
 const MAX_SHARE = 1_000_000
+/** Shared trips are deleted this long after their last update (12 months) */
+const SHARE_TTL = 365 * 24 * 60 * 60
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
@@ -164,7 +167,7 @@ async function shares(req: Request, env: Env, id: string, reply: (body: unknown,
     if (!input.data) return reply({ error: 'bad_request' }, 400)
     const newId = randomId(10)
     const key = b64(crypto.getRandomValues(new Uint8Array(24)))
-    await kv.put(newId, JSON.stringify(input.data), { metadata: { key: await sha256(key) } })
+    await kv.put(newId, JSON.stringify(input.data), { metadata: { key: await sha256(key) }, expirationTtl: SHARE_TTL })
     return reply({ id: newId, key })
   }
 
@@ -173,7 +176,7 @@ async function shares(req: Request, env: Env, id: string, reply: (body: unknown,
     if (!metadata) return reply({ error: 'not_found' }, 404)
     if (!input.key || (await sha256(input.key)) !== metadata.key) return reply({ error: 'forbidden' }, 403)
     if (req.method === 'DELETE') await kv.delete(id)
-    else if (input.data) await kv.put(id, JSON.stringify(input.data), { metadata })
+    else if (input.data) await kv.put(id, JSON.stringify(input.data), { metadata, expirationTtl: SHARE_TTL })
     else return reply({ error: 'bad_request' }, 400)
     return reply({})
   }
